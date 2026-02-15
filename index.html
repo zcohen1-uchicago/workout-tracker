@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Tracker Pro</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const allEquipment = [
+            'Barbell', 'Dumbbells', 'Kettlebells', 'Cable Machine', 'Pull-up Bar',
+            'Bench', 'Squat Rack', 'Leg Press', 'Rowing Machine', 'Treadmill',
+            'Battle Ropes', 'Sled', 'Box/Platform', 'Medicine Ball', 'Resistance Bands',
+            'Dip Station', 'Hex Bar', 'TRX/Suspension', 'Assault Bike', 'Ski Erg',
+            'Hip Thrust Machine', 'Tire', 'Yoga Ball', 'Hack Squat Machine',
+            'Leg Curl Machine', 'Leg Extension Machine', 'T-Bar Row', 'Row Machine'
+        ];
+
+        const exercises = {
+            "Barbell Deadlift-Clean-Press": { 
+                equipment: ['Barbell'], 
+                substitutes: ['DB Clean and Press', 'KB Clean and Press'],
+                description: "Explosive full-body movement. Deadlift bar from ground, clean to shoulders in one motion, then press overhead.",
+                formCues: ["Flat back on deadlift", "Explosive hip drive", "Catch bar on shoulders", "Press to full lockout"],
+                videoId: "EAk5lX_fP-Q"
+            },
+            "KB Suitcase Squats": { 
+                equipment: ['Kettlebells'], 
+                substitutes: ['DB Suitcase Squats', 'Goblet Squats'],
+                description: "Hold kettlebell at your side like a suitcase. Squat down keeping torso upright, fighting the lateral pull.",
+                formCues: ["Keep shoulders level", "Core tight", "Squat to parallel", "Drive through heels"],
+                videoId: "JNXTHfNyZrY"
+            },
+            "Battle Ropes": { 
+                equipment: ['Battle Ropes'], 
+                substitutes: ['Jump Rope', 'High Knees', 'Mountain Climbers'],
+                description: "Create alternating waves with heavy ropes. High intensity cardio and grip work.",
+                formCues: ["Athletic stance", "Rapid arm movement", "Maintain rhythm", "Core engaged"],
+                videoId: "WfMjjX5uu3Y"
+            },
+            "Bulgarian Split Squats": { 
+                equipment: ['Bench', 'Dumbbells'], 
+                substitutes: ['Lunges', 'Step-Ups'],
+                description: "Rear foot elevated on bench, front leg squats down. Intense single-leg quad and glute builder.",
+                formCues: ["Front shin vertical", "Knee tracks over toe", "Chest up", "Full depth"],
+                videoId: "2C-uSaDVJaA"
+            },
+            "Box Jumps": { 
+                equipment: ['Box/Platform'], 
+                substitutes: ['Jump Squats', 'Step-Ups'],
+                description: "Explosive jump onto elevated platform. Builds power and athleticism.",
+                formCues: ["Soft landing", "Full hip extension", "Land quietly", "Step down safely"],
+                videoId: "NBY9-kTuHEk"
+            },
+            "Dead Ball Side-to-Side Slam": { 
+                equipment: ['Medicine Ball'], 
+                substitutes: ['Medicine Ball Slams', 'Woodchoppers'],
+                description: "Lift medicine ball overhead and slam diagonally to the side. Excellent for obliques and power.",
+                formCues: ["Full body rotation", "Slam with force", "Catch and repeat", "Alternate sides"],
+                videoId: "l-WfWPZhQqw"
+            },
+            "DB Clean and Press": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['KB Clean and Press', 'Barbell Clean and Press'],
+                description: "Explosive pull of dumbbells from ground to shoulders, then press overhead.",
+                formCues: ["Hinge to grab DBs", "Explosive pull to shoulders", "Stabilize core", "Press to lockout"],
+                videoId: "KCZ7JkdXTKE"
+            },
+            "Goblet Squats": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['KB Goblet Squat', 'Barbell Front Squat'],
+                description: "Hold dumbbell at chest, squat deep. Great for quad development and mobility.",
+                formCues: ["Elbows between knees", "Chest up", "Squat depth", "Knees out"],
+                videoId: "MeHQ_9Z_YXU"
+            },
+            "Sled Push": { 
+                equipment: ['Sled'], 
+                substitutes: ['Plate Pushes', 'Heavy Farmers Walk'],
+                description: "Push weighted sled forward. Incredible leg and conditioning builder.",
+                formCues: ["Lean into sled", "Drive through legs", "Maintain speed", "Arms extended"],
+                videoId: "i8_mZG50XRg"
+            },
+            "DB Walking Lunges": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['KB Walking Lunges', 'Bodyweight Lunges'],
+                description: "Walking forward lunges with dumbbells. Builds leg strength and stability.",
+                formCues: ["Long stride", "Back knee near ground", "Torso upright", "Push through front heel"],
+                videoId: "D7KaRcUTQeE"
+            },
+            "Chin Ups": { 
+                equipment: ['Pull-up Bar'], 
+                substitutes: ['Inverted Rows', 'Lat Pulldowns'],
+                description: "Underhand grip pull-ups. Emphasizes biceps and lats more than regular pull-ups.",
+                formCues: ["Full hang", "Pull chin over bar", "Control descent", "Squeeze at top"],
+                videoId: "brhvtUg8eO0"
+            },
+            "Renegade Rows": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['Plank Rows', 'Single Arm DB Rows'],
+                description: "Plank position on dumbbells, row one arm at a time. Core anti-rotation work.",
+                formCues: ["Stable plank", "Minimize rotation", "Pull to hip", "Alternate smoothly"],
+                videoId: "wWZgvYS9roQ"
+            },
+            "Hang Clean to Push Press": { 
+                equipment: ['Barbell'], 
+                substitutes: ['DB Hang Clean to Press'],
+                description: "Start with bar at thighs, explosive clean to shoulders, use leg drive to help press overhead.",
+                formCues: ["Explosive hip drive", "Catch on shoulders", "Dip and drive", "Full lockout"],
+                videoId: "0hSfJhHTtqs"
+            },
+            "Front Squats": { 
+                equipment: ['Barbell', 'Squat Rack'], 
+                substitutes: ['Goblet Squats', 'DB Front Squats'],
+                description: "Barbell rests on front of shoulders. More quad-dominant than back squat.",
+                formCues: ["Elbows high", "Chest up", "Full depth", "Drive through heels"],
+                videoId: "uYumuL_G_V0"
+            },
+            "Assault Bike": { 
+                equipment: ['Assault Bike'], 
+                substitutes: ['Treadmill Sprints', 'Burpees'],
+                description: "Fan bike with moving handles. Upper and lower body cardio torture device.",
+                formCues: ["Push and pull arms", "Full leg extension", "Maintain pace", "Breathe rhythmically"],
+                videoId: "d6e5XaVcBYE"
+            },
+            "Step-Ups": { 
+                equipment: ['Box/Platform', 'Dumbbells'], 
+                substitutes: ['Box Jumps', 'Lunges'],
+                description: "Step up onto elevated platform with weights. Unilateral leg builder.",
+                formCues: ["Drive through heel", "Full hip extension on top", "Control descent", "Alternate legs"],
+                videoId: "dQqApCGd5Ss"
+            },
+            "Sled Rows": { 
+                equipment: ['Sled'], 
+                substitutes: ['Resistance Band Rows', 'Cable Rows'],
+                description: "Pull weighted sled toward you using rope attachment. Back and bicep builder.",
+                formCues: ["Hand over hand", "Engaged back", "Maintain posture", "Controlled pulls"],
+                videoId: "LyT3JVQY5Mo"
+            },
+            "Plank Variations": { 
+                equipment: [], 
+                substitutes: ['Hollow Body Hold', 'Dead Bug'],
+                description: "Various plank holds: standard, side, RKC, or moving variations for core strength.",
+                formCues: ["Neutral spine", "Squeeze glutes", "Don't sag", "Controlled breathing"],
+                videoId: "ASdvN_XEl_c"
+            },
+            "Heel Elevated Goblet Squat": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['Regular Goblet Squat', 'Front Squat'],
+                description: "Heels on small plates, goblet squat. Increases quad activation and depth.",
+                formCues: ["Heels on plates", "Torso upright", "Deep squat", "Elbows inside knees"],
+                videoId: "MeHQ_9Z_YXU"
+            },
+            "Hip Thruster Machine": { 
+                equipment: ['Hip Thrust Machine'], 
+                substitutes: ['Barbell Hip Thrust', 'Glute Bridge'],
+                description: "Hip extension movement on machine. Premier glute builder.",
+                formCues: ["Shoulders on pad", "Full hip extension", "Squeeze glutes at top", "Control descent"],
+                videoId: "ZL1dtBMfw1E"
+            },
+            "Pull Ups": { 
+                equipment: ['Pull-up Bar'], 
+                substitutes: ['Lat Pulldown', 'Inverted Rows'],
+                description: "Overhand grip, pull chin over bar. Classic upper body strength builder.",
+                formCues: ["Full hang", "Engage lats", "Pull chest to bar", "Control down"],
+                videoId: "eGo4IYlbE5g"
+            },
+            "Single Arm Lat Pulldown": { 
+                equipment: ['Cable Machine'], 
+                substitutes: ['Single Arm DB Row', 'Resistance Band Rows'],
+                description: "One arm cable pulldown. Addresses imbalances and increases lat activation.",
+                formCues: ["Neutral spine", "Pull to chest", "Control eccentric", "Don't rotate torso"],
+                videoId: "kDJadNZhPwc"
+            },
+            "Rower": { 
+                equipment: ['Rowing Machine'], 
+                substitutes: ['Treadmill Intervals', 'Burpees'],
+                description: "Rowing machine intervals. Full body cardio emphasizing posterior chain.",
+                formCues: ["Legs, back, arms pull", "Arms, back, legs return", "Powerful leg drive", "Consistent split time"],
+                videoId: "zQ82RYIFLN8"
+            },
+            "Barbell Back Squat": { 
+                equipment: ['Barbell', 'Squat Rack'], 
+                substitutes: ['Front Squat', 'Goblet Squat'],
+                description: "Barbell on upper back, squat to depth. The king of leg exercises.",
+                formCues: ["Bar on traps", "Chest up", "Knees out", "Hip crease below knee"],
+                videoId: "ultWZbUMPL8"
+            },
+            "Romanian Deadlifts": { 
+                equipment: ['Barbell'], 
+                substitutes: ['DB Romanian Deadlifts', 'Single Leg RDLs'],
+                description: "Hip hinge with slight knee bend. Targets hamstrings and glutes.",
+                formCues: ["Slight knee bend", "Push hips back", "Feel hamstring stretch", "Bar close to legs"],
+                videoId: "2SHsk9AzdjA"
+            },
+            "Leg Press": { 
+                equipment: ['Leg Press'], 
+                substitutes: ['Squats', 'Bulgarian Split Squats'],
+                description: "Machine-based leg push. Safe way to load legs heavy without back stress.",
+                formCues: ["Feet hip width", "Full range", "Don't lock knees", "Control negative"],
+                videoId: "IZxyjW7MPJQ"
+            },
+            "Cable Rows": { 
+                equipment: ['Cable Machine'], 
+                substitutes: ['Bent Over Rows', 'DB Rows'],
+                description: "Seated cable row. Back thickness builder with constant tension.",
+                formCues: ["Chest up", "Pull to sternum", "Squeeze shoulder blades", "Control return"],
+                videoId: "GZbfZ033f74"
+            },
+            "Leg Curls": { 
+                equipment: ['Leg Curl Machine'], 
+                substitutes: ['Nordic Curls', 'Swiss Ball Leg Curls'],
+                description: "Isolation movement for hamstrings. Lying or seated variation.",
+                formCues: ["Control tempo", "Full contraction", "Don't arch back", "Squeeze at top"],
+                videoId: "ELOCsoDSmrg"
+            },
+            "Face Pulls": { 
+                equipment: ['Cable Machine'], 
+                substitutes: ['Resistance Band Face Pulls', 'Reverse Flyes'],
+                description: "Cable pull to face level. Excellent for rear delts and shoulder health.",
+                formCues: ["High elbow position", "Pull to face", "External rotation", "Squeeze rear delts"],
+                videoId: "eIq5CB9JfKE"
+            },
+            "Walking Lunges": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['Reverse Lunges', 'Stationary Lunges'],
+                description: "Walking forward with alternating lunges. Leg strength and stability.",
+                formCues: ["Long strides", "Back knee down", "Torso upright", "Push through front heel"],
+                videoId: "D7KaRcUTQeE"
+            },
+            "Hack Squat": { 
+                equipment: ['Hack Squat Machine'], 
+                substitutes: ['Barbell Hack Squat', 'Leg Press'],
+                description: "Machine squat with back support. Intense quad focus.",
+                formCues: ["Feet forward on plate", "Deep squat", "Push through heels", "Control up and down"],
+                videoId: "0tn5K9NlCfo"
+            },
+            "T-Bar Row": { 
+                equipment: ['T-Bar Row'], 
+                substitutes: ['Barbell Rows', 'Meadows Rows'],
+                description: "Bent over row using T-bar attachment. Thick back builder.",
+                formCues: ["Flat back", "Pull to chest", "Squeeze at top", "Control descent"],
+                videoId: "j3Igk5rpXqc"
+            },
+            "Leg Extensions": { 
+                equipment: ['Leg Extension Machine'], 
+                substitutes: ['Bulgarian Split Squats', 'Wall Sits'],
+                description: "Isolated quad extension. Great for quad pump and pre-exhaust.",
+                formCues: ["Full extension", "Control negative", "Don't slam weight", "Squeeze at top"],
+                videoId: "YyvSfVjQeL0"
+            },
+            "Lat Pulldown": { 
+                equipment: ['Cable Machine'], 
+                substitutes: ['Pull-Ups', 'Inverted Rows'],
+                description: "Cable pulldown to chest. Lat width builder and pull-up preparation.",
+                formCues: ["Lean back slightly", "Pull to upper chest", "Elbows down and back", "Squeeze lats"],
+                videoId: "CAwf7n6Luuc"
+            },
+            "Hex Bar Deadlift": { 
+                equipment: ['Hex Bar'], 
+                substitutes: ['Conventional Deadlift', 'Sumo Deadlift'],
+                description: "Deadlift with trap bar. More quad emphasis, easier on lower back.",
+                formCues: ["Neutral spine", "Push floor away", "Full hip extension", "Controlled descent"],
+                videoId: "5bcTfP53iIY"
+            },
+            "Standing DB Shoulder Press": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['KB Shoulder Press', 'Barbell Overhead Press'],
+                description: "Overhead press dumbbells from shoulders. Builds shoulder strength and stability.",
+                formCues: ["Core tight", "Press straight up", "Don't arch back", "Full lockout"],
+                videoId: "qEwKCR5JCog"
+            },
+            "KB Walking Lunges": { 
+                equipment: ['Kettlebells'], 
+                substitutes: ['DB Walking Lunges', 'Reverse Lunges'],
+                description: "Walking lunges with kettlebells. Builds leg strength and grip.",
+                formCues: ["Long strides", "Chest up", "Back knee down", "Maintain balance"],
+                videoId: "D7KaRcUTQeE"
+            },
+            "Push Up/Dip Circuit": { 
+                equipment: ['Dip Station'], 
+                substitutes: ['Push-Ups and Bench Dips', 'Diamond Push-Ups'],
+                description: "Alternate between push-ups and dips. Chest and tricep burnout.",
+                formCues: ["Full range both", "Control tempo", "Don't shrug shoulders", "Maintain tension"],
+                videoId: "wjUmnZH528Y"
+            },
+            "Conventional Deadlift": { 
+                equipment: ['Barbell'], 
+                substitutes: ['Sumo Deadlift', 'Hex Bar Deadlift'],
+                description: "Classic hip-width deadlift. The king of posterior chain movements.",
+                formCues: ["Flat back", "Push floor away", "Bar against shins", "Full lockout"],
+                videoId: "op9kVnSso6Q"
+            },
+            "Overhead Press": { 
+                equipment: ['Barbell'], 
+                substitutes: ['DB Shoulder Press', 'KB Press'],
+                description: "Standing barbell press from shoulders. Ultimate shoulder builder.",
+                formCues: ["Squeeze glutes", "Press up and slightly back", "Bar over midfoot", "Full lockout"],
+                videoId: "QRAQKJcfBjY"
+            },
+            "Tire Flips": { 
+                equipment: ['Tire'], 
+                substitutes: ['Power Cleans', 'Medicine Ball Slams'],
+                description: "Flip large tire end over end. Full body power and conditioning.",
+                formCues: ["Deadlift the tire", "Drive with legs", "Push when vertical", "Clear the flip"],
+                videoId: "4vTRF0_gpVE"
+            },
+            "Standing Kettle Press": { 
+                equipment: ['Kettlebells'], 
+                substitutes: ['DB Shoulder Press', 'Barbell Press'],
+                description: "Overhead press with kettlebell. Requires shoulder stability.",
+                formCues: ["Bell rests on forearm", "Press straight up", "Don't lean back", "Full lockout"],
+                videoId: "i37RWN47VaM"
+            },
+            "Sled Push/Pull": { 
+                equipment: ['Sled'], 
+                substitutes: ['Prowler Push', 'Heavy Farmers Walk'],
+                description: "Push or pull loaded sled. Brutal leg and conditioning work.",
+                formCues: ["Low body position", "Powerful leg drive", "Maintain speed", "Don't stand up"],
+                videoId: "i8_mZG50XRg"
+            },
+            "Burpees": { 
+                equipment: [], 
+                substitutes: ['Burpee Variations', 'Jump Squats'],
+                description: "Full body movement: squat, plank, push-up, jump. Cardio conditioning.",
+                formCues: ["Smooth transition", "Full plank", "Jump with power", "Maintain pace"],
+                videoId: "TU8QYVW0gDU"
+            },
+            "Sumo Deadlift": { 
+                equipment: ['Barbell'], 
+                substitutes: ['Conventional Deadlift', 'Hex Bar Deadlift'],
+                description: "Wide stance deadlift. More quad and adductor involvement.",
+                formCues: ["Wide stance", "Toes out", "Vertical shins", "Push knees out"],
+                videoId: "6uqNhF46k5U"
+            },
+            "Arnold Press": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['DB Shoulder Press', 'Barbell Press'],
+                description: "DB press with rotation starting palms facing you. Full shoulder development.",
+                formCues: ["Start palms in", "Rotate as you press", "Full lockout", "Control descent"],
+                videoId: "6Z15_WdXmVw"
+            },
+            "Kettlebell Swings": { 
+                equipment: ['Kettlebells'], 
+                substitutes: ['DB Swings', 'Power Cleans'],
+                description: "Explosive hip hinge swinging kettlebell. Power and conditioning.",
+                formCues: ["Hip hinge not squat", "Explosive hip snap", "Arms are ropes", "KB to eye level"],
+                videoId: "YSxHifyI6s8"
+            },
+            "Farmers Walk": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['KB Farmers Walk', 'Overhead Carry'],
+                description: "Walk with heavy weights at sides. Grip, core, and trap strength.",
+                formCues: ["Shoulders back", "Tight core", "Maintain posture", "Smooth strides"],
+                videoId: "5Msx8qJTu7s"
+            },
+            "Ski Erg": { 
+                equipment: ['Ski Erg'], 
+                substitutes: ['Treadmill Incline Walk', 'Rowing Machine'],
+                description: "Vertical pulling machine mimicking cross-country skiing motion.",
+                formCues: ["Full arm extension", "Pull to hips", "Core engagement", "Consistent pace"],
+                videoId: "OXnJT7vdvzU"
+            },
+            "Mountain Climbers": { 
+                equipment: [], 
+                substitutes: ['High Knees', 'Running in Place'],
+                description: "Plank position, alternating driving knees to chest. Cardio and core.",
+                formCues: ["Plank position", "Fast knee drive", "Don't raise hips", "Maintain pace"],
+                videoId: "nmwgirgXLYM"
+            },
+            "Barbell Flat Bench": { 
+                equipment: ['Barbell', 'Bench'], 
+                substitutes: ['DB Bench Press', 'Push-Ups'],
+                description: "Barbell bench press on flat bench. Classic chest builder.",
+                formCues: ["Arch back", "Retract shoulders", "Bar to nipple line", "Press up and back"],
+                videoId: "rT7DgCr-3pg"
+            },
+            "Deadball Side Slams": { 
+                equipment: ['Medicine Ball'], 
+                substitutes: ['Medicine Ball Slams', 'Russian Twists'],
+                description: "Slam medicine ball to sides with rotation. Oblique power development.",
+                formCues: ["Full rotation", "Explosive slam", "Catch and repeat", "Alternate sides"],
+                videoId: "l-WfWPZhQqw"
+            },
+            "DB Bench Press": { 
+                equipment: ['Dumbbells', 'Bench'], 
+                substitutes: ['Barbell Bench', 'Push-Ups'],
+                description: "Dumbbell bench press. Greater range of motion than barbell.",
+                formCues: ["Full range", "Control descent", "Press up and in", "Stable on bench"],
+                videoId: "VmB1G1K7v94"
+            },
+            "Barbell Rows": { 
+                equipment: ['Barbell'], 
+                substitutes: ['DB Rows', 'Cable Rows'],
+                description: "Bent over barbell row. Classic back thickness builder.",
+                formCues: ["Flat back", "Pull to lower chest", "Squeeze at top", "Don't stand up"],
+                videoId: "I-qgwlP0J90"
+            },
+            "Incline DB Press": { 
+                equipment: ['Dumbbells', 'Bench'], 
+                substitutes: ['Incline Barbell Press', 'Pike Push-Ups'],
+                description: "Dumbbell press on incline bench. Upper chest emphasis.",
+                formCues: ["30-45 degree incline", "Full range", "Don't flare elbows", "Control weight"],
+                videoId: "8iPEnn-ltC8"
+            },
+            "Cable Tricep Extensions": { 
+                equipment: ['Cable Machine'], 
+                substitutes: ['Overhead DB Extension', 'Skull Crushers'],
+                description: "Cable pushdown for triceps. Great for pump and isolation.",
+                formCues: ["Elbows pinned", "Full extension", "Control return", "Don't swing"],
+                videoId: "2-LAMcpzODU"
+            },
+            "Close Grip Bench": { 
+                equipment: ['Barbell', 'Bench'], 
+                substitutes: ['Close Grip DB Press', 'Diamond Push-Ups'],
+                description: "Bench press with hands close together. Tricep mass builder.",
+                formCues: ["Hands shoulder width", "Elbows tucked", "Full lockout", "Bar to lower chest"],
+                videoId: "nEF0bv2FW94"
+            },
+            "Incline Barbell Bench": { 
+                equipment: ['Barbell', 'Bench'], 
+                substitutes: ['Incline DB Press', 'Landmine Press'],
+                description: "Barbell bench on incline. Upper chest and shoulder focus.",
+                formCues: ["30-45 degree angle", "Press straight up", "Full ROM", "Control descent"],
+                videoId: "DbFgADa2IqE"
+            },
+            "Chest-Supported Row": { 
+                equipment: ['Bench', 'Dumbbells'], 
+                substitutes: ['DB Rows', 'Cable Rows'],
+                description: "Row with chest on incline bench. Removes lower back from equation.",
+                formCues: ["Chest on bench", "Pull to hips", "Squeeze shoulder blades", "No momentum"],
+                videoId: "3gd4xYN_Ws0"
+            },
+            "Dips": { 
+                equipment: ['Dip Station'], 
+                substitutes: ['Bench Dips', 'Close Grip Push-Ups'],
+                description: "Bodyweight dip. Chest and tricep builder.",
+                formCues: ["Lean forward", "Full depth", "Press to lockout", "Control descent"],
+                videoId: "2z8JmcrW-As"
+            },
+            "Skull Crushers": { 
+                equipment: ['Barbell', 'Bench'], 
+                substitutes: ['DB Skull Crushers', 'Overhead Extension'],
+                description: "Lying tricep extension. Lower bar to forehead, extend back up.",
+                formCues: ["Elbows in", "Lower to forehead", "Full extension", "Don't flare elbows"],
+                videoId: "-Vyt2QdsR7E"
+            },
+            "Cable Flyes": { 
+                equipment: ['Cable Machine'], 
+                substitutes: ['DB Flyes', 'Resistance Band Flyes'],
+                description: "Cable chest fly. Constant tension chest isolation.",
+                formCues: ["Slight elbow bend", "Arc motion", "Squeeze at center", "Control return"],
+                videoId: "Iwe6AmxVf7o"
+            },
+            "Rope Pushdowns": { 
+                equipment: ['Cable Machine'], 
+                substitutes: ['Overhead Extension', 'Close Grip Push-Ups'],
+                description: "Cable rope tricep pushdown. Split rope at bottom for extra contraction.",
+                formCues: ["Elbows pinned", "Split rope at bottom", "Full extension", "Control up"],
+                videoId: "kiuVA0gs3EI"
+            },
+            "DB Lateral Raises": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['Cable Lateral Raises', 'Plate Raises'],
+                description: "Raise dumbbells to sides. Medial deltoid isolation.",
+                formCues: ["Slight forward lean", "Lead with elbows", "To shoulder height", "Control descent"],
+                videoId: "3VcKaXpzqRo"
+            },
+            "Seated Row": { 
+                equipment: ['Cable Machine'], 
+                substitutes: ['Bent Over Rows', 'DB Rows'],
+                description: "Seated cable row. Back thickness with constant tension.",
+                formCues: ["Chest up", "Pull to sternum", "Squeeze shoulder blades", "Don't round back"],
+                videoId: "GZbfZ033f74"
+            },
+            "Seated Shoulder Press": { 
+                equipment: ['Dumbbells', 'Bench'], 
+                substitutes: ['Standing DB Press', 'Barbell Press'],
+                description: "Overhead dumbbell press while seated. Shoulder mass builder.",
+                formCues: ["Back support", "Press straight up", "Full ROM", "Control descent"],
+                videoId: "qEwKCR5JCog"
+            },
+            "Bent Over Row": { 
+                equipment: ['Barbell'], 
+                substitutes: ['DB Rows', 'Cable Rows'],
+                description: "Classic barbell bent over row. Back thickness and strength.",
+                formCues: ["Flat back", "Pull to lower chest", "Squeeze at top", "Control negative"],
+                videoId: "I-qgwlP0J90"
+            },
+            "DB Bicep Curls": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['Barbell Curls', 'Cable Curls'],
+                description: "Standard dumbbell curl. Bicep isolation and development.",
+                formCues: ["Elbows pinned", "Full supination", "Control negative", "No swinging"],
+                videoId: "ykJmrZ5v0Oo"
+            },
+            "Standing Barbell Shoulder Press": { 
+                equipment: ['Barbell'], 
+                substitutes: ['DB Shoulder Press', 'KB Press'],
+                description: "Standing overhead barbell press. Total shoulder development.",
+                formCues: ["Tight core", "Press up and back", "Full lockout", "Bar over midfoot"],
+                videoId: "QRAQKJcfBjY"
+            },
+            "DB Curls": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['Barbell Curls', 'Cable Curls'],
+                description: "Dumbbell bicep curls. Can be done alternating or simultaneously.",
+                formCues: ["Elbows stable", "Full range", "Squeeze at top", "Controlled negative"],
+                videoId: "ykJmrZ5v0Oo"
+            },
+            "Machine Row": { 
+                equipment: ['Row Machine'], 
+                substitutes: ['Cable Rows', 'Bent Over Rows'],
+                description: "Machine-based rowing. Fixed path for safe heavy loading.",
+                formCues: ["Chest to pad", "Pull to torso", "Squeeze scapula", "Full stretch"],
+                videoId: "GZbfZ033f74"
+            },
+            "Tricep Extensions": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['Cable Pushdown', 'Skull Crushers'],
+                description: "Overhead dumbbell tricep extension. Long head emphasis.",
+                formCues: ["Overhead position", "Elbows in", "Full extension", "Control descent"],
+                videoId: "YbX7Wd8jQ-Q"
+            },
+            "Cable Curls": { 
+                equipment: ['Cable Machine'], 
+                substitutes: ['DB Curls', 'Barbell Curls'],
+                description: "Cable bicep curls. Constant tension throughout movement.",
+                formCues: ["Elbows pinned", "Curl to shoulders", "Control negative", "Don't swing"],
+                videoId: "MKf8YHuwG-U"
+            },
+            "Pull-Ups": { 
+                equipment: ['Pull-up Bar'], 
+                substitutes: ['Lat Pulldown', 'Inverted Rows'],
+                description: "Overhand pull-up. Lat width and upper body strength.",
+                formCues: ["Full hang", "Pull chest to bar", "Control down", "Squeeze at top"],
+                videoId: "eGo4IYlbE5g"
+            },
+            "Hammer Curls": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['Regular DB Curls', 'Cable Curls'],
+                description: "Neutral grip dumbbell curls. Emphasizes brachialis and forearms.",
+                formCues: ["Neutral grip", "Elbows pinned", "Full range", "No swinging"],
+                videoId: "TwD-YGVP4Bk"
+            },
+            "Overhead Tricep Extension": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['Cable Overhead Extension', 'Skull Crushers'],
+                description: "Overhead tricep extension with dumbbell. Long head focus.",
+                formCues: ["Dumbbell overhead", "Elbows forward", "Full extension", "Control weight"],
+                videoId: "YbX7Wd8jQ-Q"
+            },
+            "Shrugs": { 
+                equipment: ['Dumbbells'], 
+                substitutes: ['Barbell Shrugs', 'Upright Rows'],
+                description: "Trap shrugs with dumbbells. Direct trap development.",
+                formCues: ["Straight up", "Squeeze traps", "Hold at top", "Control descent"],
+                videoId: "cJRVVxmytaM"
+            },
+            "Preacher Curls": { 
+                equipment: ['Bench', 'Dumbbells'], 
+                substitutes: ['Concentration Curls', 'Cable Curls'],
+                description: "Bicep curls with arms on preacher bench. Eliminates momentum.",
+                formCues: ["Arms on pad", "Full extension", "Squeeze at top", "Control negative"],
+                videoId: "fIWP-FRFNU0"
+            }
+        };
+
+        const workoutPrograms = {
+            cleanpress: {
+                name: "Clean-Press Day",
+                variations: [
+                    [
+                        { name: "Barbell Deadlift-Clean-Press", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "KB Suitcase Squats", sets: 4, reps: "10-12", rest: "2 min" },
+                        { name: "Battle Ropes", sets: 4, reps: "30-60 sec", rest: "1 min" },
+                        { name: "Bulgarian Split Squats", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Box Jumps", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Dead Ball Side-to-Side Slam", sets: 4, reps: "30-60 sec", rest: "1 min" }
+                    ],
+                    [
+                        { name: "DB Clean and Press", sets: 4, reps: "8-10", rest: "1.5 min" },
+                        { name: "Goblet Squats", sets: 4, reps: "12-15", rest: "1 min" },
+                        { name: "Sled Push", sets: 4, reps: "30 sec", rest: "2 min" },
+                        { name: "DB Walking Lunges", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Chin Ups", sets: 4, reps: "AMRAP", rest: "1 min" },
+                        { name: "Renegade Rows", sets: 4, reps: "30-60 sec", rest: "1 min" }
+                    ],
+                    [
+                        { name: "Hang Clean to Push Press", sets: 4, reps: "6-8", rest: "2 min" },
+                        { name: "Front Squats", sets: 4, reps: "8-10", rest: "1.5 min" },
+                        { name: "Assault Bike", sets: 4, reps: "30 sec", rest: "1 min" },
+                        { name: "Step-Ups", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Sled Rows", sets: 4, reps: "15-25", rest: "1 min" },
+                        { name: "Plank Variations", sets: 4, reps: "45 sec", rest: "1 min" }
+                    ]
+                ]
+            },
+            squat: {
+                name: "Squat Day",
+                variations: [
+                    [
+                        { name: "Heel Elevated Goblet Squat", sets: 4, reps: "10-15", rest: "1 min" },
+                        { name: "Hip Thruster Machine", sets: 4, reps: "10-12", rest: "2 min" },
+                        { name: "Pull Ups", sets: 4, reps: "AMRAP", rest: "1 min" },
+                        { name: "Single Arm Lat Pulldown", sets: 4, reps: "10-15", rest: "1 min" },
+                        { name: "Rower", sets: 4, reps: "30-90 sec", rest: "1 min" },
+                        { name: "Sled Rows", sets: 4, reps: "15-25", rest: "1 min" }
+                    ],
+                    [
+                        { name: "Barbell Back Squat", sets: 4, reps: "8-10", rest: "2 min" },
+                        { name: "Romanian Deadlifts", sets: 4, reps: "10-12", rest: "1.5 min" },
+                        { name: "Leg Press", sets: 4, reps: "12-15", rest: "1 min" },
+                        { name: "Cable Rows", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Leg Curls", sets: 3, reps: "12-15", rest: "1 min" },
+                        { name: "Face Pulls", sets: 3, reps: "15-20", rest: "1 min" }
+                    ],
+                    [
+                        { name: "Bulgarian Split Squats", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Hack Squat", sets: 4, reps: "10-12", rest: "1.5 min" },
+                        { name: "Walking Lunges", sets: 4, reps: "20-30", rest: "1 min" },
+                        { name: "T-Bar Row", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Leg Extensions", sets: 3, reps: "15-20", rest: "1 min" },
+                        { name: "Lat Pulldown", sets: 3, reps: "10-12", rest: "1 min" }
+                    ]
+                ]
+            },
+            deadlift: {
+                name: "Deadlift Day",
+                variations: [
+                    [
+                        { name: "Hex Bar Deadlift", sets: 4, reps: "8-10", rest: "2 min" },
+                        { name: "Standing DB Shoulder Press", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Box Jumps", sets: 4, reps: "10-15", rest: "1 min" },
+                        { name: "KB Walking Lunges", sets: 4, reps: "20-30", rest: "1 min" },
+                        { name: "Battle Ropes", sets: 4, reps: "30-60 sec", rest: "1 min" },
+                        { name: "Push Up/Dip Circuit", sets: 4, reps: "30-60 sec", rest: "1 min" }
+                    ],
+                    [
+                        { name: "Conventional Deadlift", sets: 4, reps: "6-8", rest: "2.5 min" },
+                        { name: "Overhead Press", sets: 4, reps: "8-10", rest: "1.5 min" },
+                        { name: "Tire Flips", sets: 4, reps: "30-60 sec", rest: "1 min" },
+                        { name: "Standing Kettle Press", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Sled Push/Pull", sets: 4, reps: "30-60 sec", rest: "1 min" },
+                        { name: "Burpees", sets: 3, reps: "10-15", rest: "1 min" }
+                    ],
+                    [
+                        { name: "Sumo Deadlift", sets: 4, reps: "8-10", rest: "2 min" },
+                        { name: "Arnold Press", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Kettlebell Swings", sets: 4, reps: "15-20", rest: "1 min" },
+                        { name: "Farmers Walk", sets: 4, reps: "60 sec", rest: "1 min" },
+                        { name: "Ski Erg", sets: 4, reps: "30-60 sec", rest: "1 min" },
+                        { name: "Mountain Climbers", sets: 3, reps: "30-60 sec", rest: "1 min" }
+                    ]
+                ]
+            },
+            bench: {
+                name: "Bench/Back/Triceps Day",
+                variations: [
+                    [
+                        { name: "Barbell Flat Bench", sets: 4, reps: "8-12", rest: "2 min" },
+                        { name: "Pull Ups", sets: 4, reps: "AMRAP", rest: "1 min" },
+                        { name: "Bulgarian Split Squats", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Battle Ropes", sets: 4, reps: "30-60 sec", rest: "1 min" },
+                        { name: "Ski Erg", sets: 4, reps: "30-60 sec", rest: "1 min" },
+                        { name: "Deadball Side Slams", sets: 4, reps: "30-60 sec", rest: "1 min" }
+                    ],
+                    [
+                        { name: "DB Bench Press", sets: 4, reps: "10-12", rest: "1.5 min" },
+                        { name: "Barbell Rows", sets: 4, reps: "8-10", rest: "1 min" },
+                        { name: "Incline DB Press", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Cable Tricep Extensions", sets: 4, reps: "12-15", rest: "1 min" },
+                        { name: "Lat Pulldown", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Close Grip Bench", sets: 3, reps: "10-12", rest: "1 min" }
+                    ],
+                    [
+                        { name: "Incline Barbell Bench", sets: 4, reps: "8-10", rest: "2 min" },
+                        { name: "Chest-Supported Row", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Dips", sets: 4, reps: "AMRAP", rest: "1 min" },
+                        { name: "Skull Crushers", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Cable Flyes", sets: 3, reps: "12-15", rest: "1 min" },
+                        { name: "Rope Pushdowns", sets: 3, reps: "15-20", rest: "1 min" }
+                    ]
+                ]
+            },
+            extra: {
+                name: "Extra Day (Back/Shoulders/Arms)",
+                variations: [
+                    [
+                        { name: "Lat Pulldown", sets: 3, reps: "10-12", rest: "1.5 min" },
+                        { name: "DB Lateral Raises", sets: 3, reps: "12-15", rest: "1 min" },
+                        { name: "Seated Row", sets: 3, reps: "10-12", rest: "1 min" },
+                        { name: "Seated Shoulder Press", sets: 3, reps: "10-12", rest: "1 min" },
+                        { name: "Bent Over Row", sets: 3, reps: "10-12", rest: "1 min" },
+                        { name: "DB Bicep Curls", sets: 3, reps: "12-15", rest: "1 min" }
+                    ],
+                    [
+                        { name: "Standing Barbell Shoulder Press", sets: 4, reps: "8-10", rest: "1 min" },
+                        { name: "DB Curls", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Machine Row", sets: 3, reps: "10-12", rest: "1 min" },
+                        { name: "DB Lateral Raises", sets: 4, reps: "10-12", rest: "1 min" },
+                        { name: "Tricep Extensions", sets: 3, reps: "10-12", rest: "1 min" },
+                        { name: "Cable Curls", sets: 3, reps: "12-15", rest: "1 min" }
+                    ],
+                    [
+                        { name: "Pull-Ups", sets: 4, reps: "AMRAP", rest: "1.5 min" },
+                        { name: "Face Pulls", sets: 4, reps: "15-20", rest: "1 min" },
+                        { name: "Hammer Curls", sets: 3, reps: "10-12", rest: "1 min" },
+                        { name: "Overhead Tricep Extension", sets: 3, reps: "12-15", rest: "1 min" },
+                        { name: "Shrugs", sets: 3, reps: "15-20", rest: "1 min" },
+                        { name: "Preacher Curls", sets: 3, reps: "10-12", rest: "1 min" }
+                    ]
+                ]
+            }
+        };
+
+        const cardioWorkouts = {
+            treadmill: [
+                {
+                    name: "HIIT Sprint Intervals",
+                    goal: "Fat burn & conditioning",
+                    duration: "20 min",
+                    phases: [
+                        { time: "5 min", activity: "Warm-up jog (3.5-4.5 mph)" },
+                        { time: "30 sec", activity: "Sprint (8-10 mph)" },
+                        { time: "90 sec", activity: "Recovery walk (2.5-3 mph)" },
+                        { time: "x8-10", activity: "Repeat sprint/recovery" },
+                        { time: "3 min", activity: "Cool-down walk" }
+                    ]
+                },
+                {
+                    name: "Incline Power Walk",
+                    goal: "Leg strength & endurance",
+                    duration: "25 min",
+                    phases: [
+                        { time: "3 min", activity: "Warm-up (0% incline, 3 mph)" },
+                        { time: "3 min", activity: "5% incline, 3.5 mph" },
+                        { time: "3 min", activity: "8% incline, 3.5 mph" },
+                        { time: "3 min", activity: "10% incline, 3.5 mph" },
+                        { time: "3 min", activity: "12% incline, 3.5 mph" },
+                        { time: "3 min", activity: "15% incline, 3.0 mph" },
+                        { time: "7 min", activity: "Reverse back down" }
+                    ]
+                },
+                {
+                    name: "Tempo Run",
+                    goal: "Cardio endurance",
+                    duration: "30 min",
+                    phases: [
+                        { time: "5 min", activity: "Easy jog (4 mph)" },
+                        { time: "20 min", activity: "Tempo pace (6-7 mph)" },
+                        { time: "5 min", activity: "Cool-down jog" }
+                    ]
+                }
+            ],
+            rower: [
+                {
+                    name: "Power Intervals",
+                    goal: "Power & conditioning",
+                    duration: "20 min",
+                    phases: [
+                        { time: "5 min", activity: "Easy warm-up (2:15/500m)" },
+                        { time: "1 min", activity: "Hard pull (1:45/500m)" },
+                        { time: "1 min", activity: "Easy recovery (2:30/500m)" },
+                        { time: "x7-8", activity: "Repeat hard/easy" },
+                        { time: "3 min", activity: "Cool-down" }
+                    ]
+                },
+                {
+                    name: "Pyramid Workout",
+                    goal: "Endurance & mental toughness",
+                    duration: "25 min",
+                    phases: [
+                        { time: "3 min", activity: "Warm-up (2:10/500m)" },
+                        { time: "2 min", activity: "Hard (1:50/500m)" },
+                        { time: "4 min", activity: "Hard (1:55/500m)" },
+                        { time: "6 min", activity: "Hard (2:00/500m)" },
+                        { time: "4 min", activity: "Hard (1:55/500m)" },
+                        { time: "2 min", activity: "Hard (1:50/500m)" },
+                        { time: "3 min", activity: "Cool-down" }
+                    ]
+                },
+                {
+                    name: "Steady State",
+                    goal: "Aerobic base",
+                    duration: "30 min",
+                    phases: [
+                        { time: "3 min", activity: "Warm-up (2:15/500m)" },
+                        { time: "24 min", activity: "Steady state (2:05/500m)" },
+                        { time: "3 min", activity: "Cool-down" }
+                    ]
+                }
+            ],
+            combined: [
+                {
+                    name: "Row & Run Intervals",
+                    goal: "Full body conditioning",
+                    duration: "30 min",
+                    phases: [
+                        { time: "3 min", activity: "Treadmill warm-up (4 mph)" },
+                        { time: "4 min", activity: "Rowing (moderate)" },
+                        { time: "3 min", activity: "Treadmill run (7 mph)" },
+                        { time: "4 min", activity: "Rowing (hard)" },
+                        { time: "3 min", activity: "Treadmill run (7.5 mph)" },
+                        { time: "x2-3", activity: "Repeat row/run" },
+                        { time: "3 min", activity: "Cool-down walk" }
+                    ]
+                }
+            ]
+        };
+
+        function ExerciseDetailModal({ exercise, onClose }) {
+            const exerciseData = exercises[exercise.name];
+            if (!exerciseData) return null;
+
+            // Map exercises to their demonstration images
+            const getExerciseImageUrl = (exerciseName) => {
+                // Create a clean search term
+                const cleanName = exerciseName.toLowerCase()
+                    .replace(/\//g, ' ')
+                    .replace(/db/g, 'dumbbell')
+                    .replace(/kb/g, 'kettlebell')
+                    .trim();
+                
+                // Use ExRx.net which has public domain exercise images
+                // Or Unsplash for fitness images
+                return `https://source.unsplash.com/800x500/?${cleanName.replace(/\s+/g, ',')},exercise,fitness,workout`;
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50" onClick={onClose}>
+                    <div className="bg-white rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-start mb-6">
+                            <h2 className="text-3xl font-bold text-purple-800">{exercise.name}</h2>
+                            <button onClick={onClose} className="text-4xl text-gray-500 hover:text-gray-700">&times;</button>
+                        </div>
+
+                        <div className="mb-6 rounded-xl overflow-hidden bg-gradient-to-br from-purple-50 to-blue-50 p-4">
+                            <div className="relative">
+                                <img 
+                                    src={getExerciseImageUrl(exercise.name)}
+                                    alt={`${exercise.name} demonstration`}
+                                    className="w-full h-96 object-cover rounded-lg shadow-lg"
+                                    onError={(e) => {
+                                        // If image fails to load, show a styled placeholder
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                />
+                                <div 
+                                    style={{display: 'none'}} 
+                                    className="w-full h-96 bg-gradient-to-br from-purple-400 to-blue-500 rounded-lg shadow-lg items-center justify-center text-white text-center p-8">
+                                    <div>
+                                        <div className="text-6xl mb-4">💪</div>
+                                        <div className="text-2xl font-bold">{exercise.name}</div>
+                                        <div className="text-lg mt-2 opacity-90">Exercise Demonstration</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <h3 className="text-xl font-bold mb-3 text-purple-700">Description</h3>
+                            <p className="text-gray-700 text-lg leading-relaxed">{exerciseData.description}</p>
+                        </div>
+
+                        <div className="mb-6">
+                            <h3 className="text-xl font-bold mb-3 text-purple-700">Form Cues</h3>
+                            <ul className="space-y-2">
+                                {exerciseData.formCues.map((cue, i) => (
+                                    <li key={i} className="flex items-start">
+                                        <span className="text-green-500 text-2xl mr-3">✓</span>
+                                        <span className="text-gray-700 text-lg">{cue}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        {exerciseData.equipment.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="text-xl font-bold mb-3 text-purple-700">Required Equipment</h3>
+                                <div className="flex gap-2 flex-wrap">
+                                    {exerciseData.equipment.map(eq => (
+                                        <span key={eq} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full font-medium">
+                                            {eq}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <button 
+                            onClick={onClose}
+                            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl text-lg">
+                            Got it!
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        function App() {
+            const [currentDay, setCurrentDay] = useState(null);
+            const [currentVariation, setCurrentVariation] = useState(0);
+            const [userEquipment, setUserEquipment] = useState([]);
+            const [showEquipmentModal, setShowEquipmentModal] = useState(false);
+            const [workoutData, setWorkoutData] = useState({ history: [], stats: { total: 0, thisWeek: 0, streak: 0 } });
+            const [swappedExercises, setSwappedExercises] = useState({});
+            const [selectedCardio, setSelectedCardio] = useState(null);
+            const [showCardioSelector, setShowCardioSelector] = useState(false);
+            const [selectedExercise, setSelectedExercise] = useState(null);
+            const [cardioDuration, setCardioDuration] = useState(20);
+
+            useEffect(() => {
+                loadData();
+            }, []);
+
+            const loadData = async () => {
+                try {
+                    const equipResult = await window.storage.get('user-equipment', false);
+                    if (equipResult?.value) {
+                        setUserEquipment(JSON.parse(equipResult.value));
+                    }
+                    const workoutResult = await window.storage.get('workout-data', false);
+                    if (workoutResult?.value) {
+                        setWorkoutData(JSON.parse(workoutResult.value));
+                    }
+                } catch (error) {
+                    console.log('Starting fresh');
+                }
+            };
+
+            const saveEquipment = async () => {
+                await window.storage.set('user-equipment', JSON.stringify(userEquipment), false);
+                setShowEquipmentModal(false);
+            };
+
+            const saveWorkoutData = async (data) => {
+                await window.storage.set('workout-data', JSON.stringify(data), false);
+            };
+
+            const toggleEquipment = (item) => {
+                setUserEquipment(prev => 
+                    prev.includes(item) ? prev.filter(e => e !== item) : [...prev, item]
+                );
+            };
+
+            const checkEquipment = (exercise) => {
+                const exerciseData = exercises[exercise.name];
+                if (!exerciseData || exerciseData.equipment.length === 0) return { hasEquipment: true, missing: [] };
+                const missing = exerciseData.equipment.filter(eq => !userEquipment.includes(eq));
+                return { hasEquipment: missing.length === 0, missing };
+            };
+
+            const swapExercise = (exerciseName, index) => {
+                const exerciseData = exercises[exerciseName];
+                if (!exerciseData?.substitutes?.length) return;
+                
+                const currentSwap = swappedExercises[exerciseName] || exerciseName;
+                const allOptions = [exerciseName, ...exerciseData.substitutes];
+                const currentIndex = allOptions.indexOf(currentSwap);
+                const nextIndex = (currentIndex + 1) % allOptions.length;
+                
+                setSwappedExercises(prev => ({
+                    ...prev,
+                    [exerciseName]: allOptions[nextIndex]
+                }));
+            };
+
+            const completeWorkout = async () => {
+                const date = new Date().toISOString().split('T')[0];
+                const newHistory = [...workoutData.history, { date, day: currentDay, variation: currentVariation }];
+                
+                const weekAgo = new Date();
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                const thisWeek = newHistory.filter(w => new Date(w.date) > weekAgo).length;
+                
+                const sortedDates = [...new Set(newHistory.map(w => w.date))].sort().reverse();
+                let streak = 0;
+                let currentDate = new Date();
+                for (let date of sortedDates) {
+                    const workoutDate = new Date(date);
+                    const diffDays = Math.floor((currentDate - workoutDate) / (1000 * 60 * 60 * 24));
+                    if (diffDays <= 1) {
+                        streak++;
+                        currentDate = workoutDate;
+                    } else break;
+                }
+                
+                const newData = {
+                    history: newHistory,
+                    stats: { total: newHistory.length, thisWeek, streak }
+                };
+                
+                setWorkoutData(newData);
+                await saveWorkoutData(newData);
+                alert('🎉 Workout completed! Great job!');
+            };
+
+            const selectCardio = (type, index) => {
+                setSelectedCardio({ type, workout: cardioWorkouts[type][index] });
+                setShowCardioSelector(false);
+            };
+
+            const scaleCardioPhases = (phases, targetDuration) => {
+                // Calculate total duration from phases (only count time-based phases, not instructions like "x8-10")
+                let totalMinutes = 0;
+                
+                phases.forEach(phase => {
+                    if (phase.time.includes('x') || phase.time.toLowerCase().includes('repeat')) {
+                        // Skip instruction phases
+                        return;
+                    }
+                    
+                    const minMatch = phase.time.match(/(\d+)\s*min/i);
+                    const secMatch = phase.time.match(/(\d+)\s*sec/i);
+                    
+                    if (minMatch) {
+                        totalMinutes += parseInt(minMatch[1]);
+                    } else if (secMatch) {
+                        totalMinutes += parseInt(secMatch[1]) / 60; // Convert seconds to minutes
+                    }
+                });
+
+                if (totalMinutes === 0) return phases;
+
+                const scale = targetDuration / totalMinutes;
+
+                return phases.map(phase => {
+                    // Don't scale instruction phases
+                    if (phase.time.includes('x') || phase.time.toLowerCase().includes('repeat')) {
+                        return phase;
+                    }
+                    
+                    const minMatch = phase.time.match(/(\d+)\s*min/i);
+                    const secMatch = phase.time.match(/(\d+)\s*sec/i);
+                    
+                    if (minMatch) {
+                        const originalTime = parseInt(minMatch[1]);
+                        const scaledTime = Math.round(originalTime * scale);
+                        return {
+                            ...phase,
+                            time: phase.time.replace(/\d+\s*min/i, `${scaledTime} min`)
+                        };
+                    } else if (secMatch) {
+                        const originalTime = parseInt(secMatch[1]);
+                        const scaledTime = Math.round(originalTime * scale);
+                        // Keep as seconds if under 60, otherwise convert to minutes
+                        if (scaledTime < 60) {
+                            return {
+                                ...phase,
+                                time: phase.time.replace(/\d+\s*sec/i, `${scaledTime} sec`)
+                            };
+                        } else {
+                            const minutes = Math.round(scaledTime / 60);
+                            return {
+                                ...phase,
+                                time: phase.time.replace(/\d+\s*sec/i, `${minutes} min`)
+                            };
+                        }
+                    }
+                    
+                    return phase;
+                });
+            };
+
+            if (!currentDay) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-purple-900 p-6">
+                        <div className="max-w-4xl mx-auto">
+                            <div className="text-center text-white mb-8">
+                                <h1 className="text-5xl font-bold mb-4">💪 Workout Tracker Pro</h1>
+                                <p className="text-xl mb-6">Track progress, learn proper form, crush goals</p>
+                                <button 
+                                    onClick={() => setShowEquipmentModal(true)}
+                                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg">
+                                    ⚙️ Setup Equipment
+                                </button>
+                            </div>
+
+                            {showEquipmentModal && (
+                                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
+                                    <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h2 className="text-2xl font-bold">Select Your Equipment</h2>
+                                            <button onClick={() => setShowEquipmentModal(false)} className="text-4xl">&times;</button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {allEquipment.map(item => (
+                                                <label key={item} className="flex items-center p-3 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={userEquipment.includes(item)}
+                                                        onChange={() => toggleEquipment(item)}
+                                                        className="w-5 h-5 mr-3"
+                                                    />
+                                                    <span>{item}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <button 
+                                            onClick={saveEquipment}
+                                            className="w-full mt-6 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg">
+                                            Save Equipment
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="bg-white rounded-2xl p-8 shadow-2xl mb-6">
+                                <h2 className="text-2xl font-bold mb-4">Select Your Workout Day</h2>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {Object.keys(workoutPrograms).map(key => (
+                                        <button 
+                                            key={key}
+                                            onClick={() => setCurrentDay(key)}
+                                            className="bg-gradient-to-r from-purple-600 to-purple-800 hover:from-pink-600 hover:to-pink-800 text-white font-bold py-6 rounded-xl transform hover:scale-105 transition">
+                                            {workoutPrograms[key].name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-2xl p-8 shadow-2xl">
+                                <h2 className="text-2xl font-bold mb-4">Your Progress</h2>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="bg-gradient-to-br from-purple-600 to-purple-800 text-white p-6 rounded-xl text-center">
+                                        <div className="text-4xl font-bold">{workoutData.stats.total}</div>
+                                        <div className="text-sm opacity-90">Total Workouts</div>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-purple-600 to-purple-800 text-white p-6 rounded-xl text-center">
+                                        <div className="text-4xl font-bold">{workoutData.stats.thisWeek}</div>
+                                        <div className="text-sm opacity-90">This Week</div>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-purple-600 to-purple-800 text-white p-6 rounded-xl text-center">
+                                        <div className="text-4xl font-bold">{workoutData.stats.streak}</div>
+                                        <div className="text-sm opacity-90">Day Streak</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            const program = workoutPrograms[currentDay];
+            const workout = program.variations[currentVariation];
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-purple-600 to-purple-900 p-6">
+                    <div className="max-w-4xl mx-auto">
+                        <button 
+                            onClick={() => setCurrentDay(null)}
+                            className="text-white mb-4 hover:underline text-lg">
+                            ← Back to Days
+                        </button>
+
+                        {selectedExercise && (
+                            <ExerciseDetailModal 
+                                exercise={selectedExercise} 
+                                onClose={() => setSelectedExercise(null)} 
+                            />
+                        )}
+
+                        <div className="bg-white rounded-2xl p-8 shadow-2xl">
+                            <div className="flex justify-between items-center mb-6 pb-4 border-b-2">
+                                <h2 className="text-3xl font-bold">{program.name}</h2>
+                                <button 
+                                    onClick={() => setCurrentVariation((currentVariation + 1) % program.variations.length)}
+                                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
+                                    Next Variation ({currentVariation + 1}/{program.variations.length})
+                                </button>
+                            </div>
+
+                            {workout.map((exercise, idx) => {
+                                const equipCheck = checkEquipment(exercise);
+                                const displayName = swappedExercises[exercise.name] || exercise.name;
+                                const exerciseData = exercises[exercise.name];
+
+                                return (
+                                    <div key={idx} className="bg-gray-50 rounded-xl p-6 mb-4 border-l-4 border-purple-600">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <h3 className="text-xl font-bold">{displayName}</h3>
+                                                    <button
+                                                        onClick={() => setSelectedExercise(exercise)}
+                                                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm font-bold">
+                                                        📹 How To
+                                                    </button>
+                                                </div>
+                                                <div className="flex gap-2 flex-wrap mb-2">
+                                                    {exerciseData?.equipment.map(eq => (
+                                                        <span key={eq} className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full">
+                                                            {eq}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {!equipCheck.hasEquipment && (
+                                            <div className="bg-yellow-100 text-yellow-800 p-3 rounded-lg mb-3 text-sm">
+                                                ⚠️ Missing: {equipCheck.missing.join(', ')}
+                                                <button 
+                                                    onClick={() => swapExercise(exercise.name, idx)}
+                                                    className="ml-3 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded">
+                                                    Swap Exercise
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        <div className="flex gap-4 mb-4 text-sm">
+                                            <span className="bg-white px-3 py-1 rounded">Sets: {exercise.sets}</span>
+                                            <span className="bg-white px-3 py-1 rounded">Reps: {exercise.reps}</span>
+                                            <span className="bg-white px-3 py-1 rounded">Rest: {exercise.rest}</span>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            {Array.from({ length: exercise.sets }, (_, i) => (
+                                                <div key={i} className="grid grid-cols-4 gap-2">
+                                                    <span className="font-bold text-purple-600 flex items-center">Set {i + 1}</span>
+                                                    <input type="number" placeholder="Weight" className="border-2 border-gray-300 rounded px-2 py-1" />
+                                                    <input type="number" placeholder="Reps" className="border-2 border-gray-300 rounded px-2 py-1" />
+                                                    <button className="bg-gray-300 hover:bg-green-500 hover:text-white rounded">✓</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            <div className="bg-green-50 rounded-xl p-6 border-l-4 border-green-500 mt-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-2xl font-bold text-green-800">💨 Cardio Workout</h3>
+                                    <button 
+                                        onClick={() => setShowCardioSelector(!showCardioSelector)}
+                                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
+                                        {selectedCardio ? 'Change Cardio' : 'Choose Cardio'}
+                                    </button>
+                                </div>
+
+                                {showCardioSelector && (
+                                    <div className="grid grid-cols-3 gap-3 mb-4">
+                                        <button 
+                                            onClick={() => selectCardio('treadmill', 0)}
+                                            className="bg-white hover:bg-green-100 p-3 rounded-lg border-2 border-green-500 text-center">
+                                            <div className="font-bold">🏃 Treadmill</div>
+                                            <div className="text-sm">HIIT Sprints</div>
+                                        </button>
+                                        <button 
+                                            onClick={() => selectCardio('treadmill', 1)}
+                                            className="bg-white hover:bg-green-100 p-3 rounded-lg border-2 border-green-500 text-center">
+                                            <div className="font-bold">🏃 Treadmill</div>
+                                            <div className="text-sm">Incline Walk</div>
+                                        </button>
+                                        <button 
+                                            onClick={() => selectCardio('treadmill', 2)}
+                                            className="bg-white hover:bg-green-100 p-3 rounded-lg border-2 border-green-500 text-center">
+                                            <div className="font-bold">🏃 Treadmill</div>
+                                            <div className="text-sm">Tempo Run</div>
+                                        </button>
+                                        <button 
+                                            onClick={() => selectCardio('rower', 0)}
+                                            className="bg-white hover:bg-green-100 p-3 rounded-lg border-2 border-green-500 text-center">
+                                            <div className="font-bold">🚣 Rower</div>
+                                            <div className="text-sm">Power Intervals</div>
+                                        </button>
+                                        <button 
+                                            onClick={() => selectCardio('rower', 1)}
+                                            className="bg-white hover:bg-green-100 p-3 rounded-lg border-2 border-green-500 text-center">
+                                            <div className="font-bold">🚣 Rower</div>
+                                            <div className="text-sm">Pyramid</div>
+                                        </button>
+                                        <button 
+                                            onClick={() => selectCardio('rower', 2)}
+                                            className="bg-white hover:bg-green-100 p-3 rounded-lg border-2 border-green-500 text-center">
+                                            <div className="font-bold">🚣 Rower</div>
+                                            <div className="text-sm">Steady State</div>
+                                        </button>
+                                        <button 
+                                            onClick={() => selectCardio('combined', 0)}
+                                            className="bg-white hover:bg-green-100 p-3 rounded-lg border-2 border-green-500 text-center col-span-3">
+                                            <div className="font-bold">🏃🚣 Combined</div>
+                                            <div className="text-sm">Row & Run Intervals</div>
+                                        </button>
+                                    </div>
+                                )}
+
+                                {selectedCardio && (
+                                    <div>
+                                        <div className="mb-4">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <h4 className="font-bold text-lg">{selectedCardio.workout.name}</h4>
+                                                <span className="text-sm text-green-700 font-bold">{cardioDuration} min</span>
+                                            </div>
+                                            <p className="text-sm text-green-700 mb-3">
+                                                Goal: {selectedCardio.workout.goal}
+                                            </p>
+                                            <div className="bg-white p-4 rounded-lg">
+                                                <label className="block text-sm font-bold mb-2">Customize Duration</label>
+                                                <input
+                                                    type="range"
+                                                    min="10"
+                                                    max="60"
+                                                    step="5"
+                                                    value={cardioDuration}
+                                                    onChange={(e) => setCardioDuration(parseInt(e.target.value))}
+                                                    className="w-full h-2 bg-green-200 rounded-lg appearance-none cursor-pointer"
+                                                />
+                                                <div className="flex justify-between text-xs text-gray-600 mt-1">
+                                                    <span>10 min</span>
+                                                    <span>35 min</span>
+                                                    <span>60 min</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {scaleCardioPhases(selectedCardio.workout.phases, cardioDuration).map((phase, i) => (
+                                                <div key={i} className="bg-white p-3 rounded-lg flex items-center gap-4">
+                                                    <div className="bg-green-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                                                        {i + 1}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="font-bold">{phase.time}</div>
+                                                        <div className="text-sm text-gray-600">{phase.activity}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <button 
+                                onClick={completeWorkout}
+                                className="w-full mt-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 rounded-xl text-lg">
+                                Complete Workout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
