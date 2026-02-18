@@ -5,974 +5,1022 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Workout Tracker Pro</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Workout Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        input, select, textarea { font-size: 16px !important; }
-        button, a { min-height: 44px; }
-        .rest-timer { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'DM Sans',system-ui,sans-serif; background:#0a0a0a; color:#e8e8e8; -webkit-font-smoothing:antialiased; }
+        input,select,textarea { font-size:16px !important; font-family:inherit; }
+        button { font-family:inherit; cursor:pointer; min-height:44px; border:none; }
+        ::-webkit-scrollbar { width:4px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:#333; border-radius:4px; }
+        .glow { box-shadow:0 0 30px rgba(99,102,241,0.15); }
+        @keyframes slideUp { from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1} }
+        @keyframes pulse { 0%,100%{transform:scale(1)}50%{transform:scale(1.05)} }
+        @keyframes prBanner { 0%{transform:translateY(-100%);opacity:0}10%{transform:translateY(0);opacity:1}90%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0} }
+        .slide-up { animation:slideUp 0.3s ease forwards; }
+        .pr-banner { animation:prBanner 4s ease forwards; position:fixed; top:0; left:0; right:0; z-index:9999; padding:16px; text-align:center; background:linear-gradient(135deg,#f59e0b,#ef4444); color:#fff; font-weight:800; font-size:18px; }
     </style>
 </head>
 <body>
-    <div id="root"></div>
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+<div id="root"></div>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
 
-        // FIXED: Use localStorage directly (works on Render, more reliable than window.storage)
-        const storage = {
-            get: (key) => {
-                try {
-                    const data = localStorage.getItem(key);
-                    return data ? JSON.parse(data) : null;
-                } catch (e) {
-                    console.error('Storage get error:', e);
-                    return null;
-                }
-            },
-            set: (key, value) => {
-                try {
-                    localStorage.setItem(key, JSON.stringify(value));
-                    return true;
-                } catch (e) {
-                    console.error('Storage set error:', e);
-                    return false;
-                }
-            },
-            remove: (key) => {
-                try {
-                    localStorage.removeItem(key);
-                    return true;
-                } catch (e) {
-                    console.error('Storage remove error:', e);
-                    return false;
-                }
-            }
-        };
+// ─── Storage ───
+const storage = {
+    get: k => { try { const d=localStorage.getItem(k); return d?JSON.parse(d):null } catch(e){ return null } },
+    set: (k,v) => { try { localStorage.setItem(k,JSON.stringify(v)); return true } catch(e){ return false } },
+};
 
-        const allEquipment = [
-            'Barbell', 'Dumbbells', 'Kettlebells', 'Cable Machine', 'Pull-up Bar',
-            'Bench', 'Squat Rack', 'Leg Press', 'Rowing Machine', 'Treadmill',
-            'Battle Ropes', 'Sled', 'Box/Platform', 'Medicine Ball', 'Resistance Bands',
-            'Dip Station', 'Hex Bar'
-        ];
+// ─── Exercise Database ───
+const exercises = {
+    // Clean-Press exercises
+    "Barbell Deadlift-Clean-Press": { equipment:['Barbell'], substitutes:['DB Clean and Press','KB Clean and Press'], description:"Explosive full-body movement. Deadlift bar from ground, clean to shoulders, press overhead.", formCues:["Flat back on deadlift","Explosive hip drive","Catch bar on shoulders","Full lockout overhead"], muscleGroups:['Full Body','Shoulders','Legs'] },
+    "Barbell Clean": { equipment:['Barbell'], substitutes:['DB Clean','KB Clean'], description:"Clean barbell from floor to rack position on shoulders.", formCues:["Pull close to body","Triple extension","Fast elbows","Absorb in front squat"], muscleGroups:['Full Body','Traps'] },
+    "KB Suitcase Squats": { equipment:['Kettlebells'], substitutes:['DB Suitcase Squats','Goblet Squats'], description:"Hold kettlebell at side like suitcase. Squat keeping torso upright.", formCues:["Shoulders level","Core tight","Squat to parallel","Drive through heels"], muscleGroups:['Legs','Core'] },
+    "Battle Ropes": { equipment:['Battle Ropes'], substitutes:['Jump Rope','High Knees','Mountain Climbers'], description:"Create alternating waves with heavy ropes for conditioning.", formCues:["Athletic stance","Rapid arms","Maintain rhythm","Core engaged"], muscleGroups:['Cardio','Arms','Core'] },
+    "Bulgarian Split Squats": { equipment:['Bench','Dumbbells'], substitutes:['Lunges','Step-Ups','Walking Lunges'], description:"Rear foot elevated on bench, front leg squats. Single-leg strength builder.", formCues:["Front shin vertical","Knee tracks over toe","Chest up","Full depth"], muscleGroups:['Legs','Glutes'] },
+    "Box Jumps": { equipment:['Box/Platform'], substitutes:['Jump Squats','Step-Ups'], description:"Explosive jump onto platform. Power and plyometric builder.", formCues:["Soft landing","Full hip extension","Land quietly","Step down"], muscleGroups:['Legs','Power'] },
+    "Yoga Ball Planks": { equipment:['Medicine Ball'], substitutes:['Planks','Dead Bugs'], description:"Plank with forearms on yoga/stability ball for anti-extension core work.", formCues:["Neutral spine","Squeeze glutes","Don't sag hips","Breathe steady"], muscleGroups:['Core'] },
+    "Dead Ball Side-to-Side Slam": { equipment:['Medicine Ball'], substitutes:['Russian Twists','Woodchops'], description:"Explosive rotational slam of dead ball side to side.", formCues:["Rotate from hips","Slam hard","Athletic stance","Full range"], muscleGroups:['Core','Power'] },
+    "DB Walking Lunges": { equipment:['Dumbbells'], substitutes:['Barbell Lunges','Bulgarian Split Squats'], description:"Walking lunges holding dumbbells at sides.", formCues:["Big steps","Knee over ankle","Upright torso","Drive through heel"], muscleGroups:['Legs','Glutes'] },
+    "Chin Ups": { equipment:['Pull-up Bar'], substitutes:['Lat Pulldown','Band Assisted Chin Ups'], description:"Underhand grip pull-up. Bicep and lat emphasis.", formCues:["Full hang start","Supinated grip","Chin over bar","Control descent"], muscleGroups:['Back','Biceps'] },
+    "Sled Rows": { equipment:['Sled'], substitutes:['Cable Rows','Band Rows'], description:"Row the sled towards you using ropes/handles.", formCues:["Hinge at hips","Pull to chest","Squeeze back","Stay low"], muscleGroups:['Back','Biceps'] },
+    "Renegade Rows": { equipment:['Dumbbells'], substitutes:['Plank Rows','Single Arm DB Rows'], description:"In push-up position, row one dumbbell at a time.", formCues:["Minimize rotation","Wide foot stance","Core braced","Full row range"], muscleGroups:['Back','Core'] },
+    "DB Bench Press": { equipment:['Dumbbells','Bench'], substitutes:['Barbell Bench','Push-Ups','Machine Press'], description:"Dumbbell bench press. Greater range of motion than barbell.", formCues:["Full range of motion","Control down","Press up and in","Stable shoulder blades"], muscleGroups:['Chest','Triceps'] },
+    "Ski Erg": { equipment:[], substitutes:['Rower','Battle Ropes','Jump Rope'], description:"Ski ergometer for upper body cardio conditioning.", formCues:["Hinge at hips","Drive with lats","Full extension","Rhythmic pace"], muscleGroups:['Cardio','Back','Core'] },
+    "Push Ups": { equipment:[], substitutes:['Knee Push-Ups','Incline Push-Ups'], description:"Classic push-up for chest and tricep endurance.", formCues:["Full lockout","Chest to floor","Core tight","Elbows 45°"], muscleGroups:['Chest','Triceps','Core'] },
+    "Spider-Man Push Ups": { equipment:[], substitutes:['Push Ups','Mountain Climbers'], description:"Push-up with alternating knee to elbow for core activation.", formCues:["Knee to elbow at bottom","Full push-up range","Alternate sides","Core engaged"], muscleGroups:['Chest','Core'] },
+    "Lat Pulldown Machine": { equipment:['Cable Machine'], substitutes:['Pull Ups','Band Pulldowns'], description:"Machine lat pulldown for back width.", formCues:["Lean slightly back","Pull to upper chest","Squeeze lats","Control return"], muscleGroups:['Back','Biceps'] },
+    "Single Leg Machine Press": { equipment:['Leg Press'], substitutes:['Bulgarian Split Squats','Pistol Squats'], description:"Single leg press on machine for unilateral leg strength.", formCues:["Full range of motion","Don't lock out","Control eccentric","Drive through heel"], muscleGroups:['Legs'] },
+    "Bent Over Barbell Row": { equipment:['Barbell'], substitutes:['DB Rows','Cable Rows','T-Bar Rows'], description:"Bent over barbell row for back thickness.", formCues:["Flat back","Pull to lower chest","Squeeze shoulder blades","Don't jerk"], muscleGroups:['Back','Biceps'] },
+    "Barbell Step Ups": { equipment:['Barbell','Box/Platform'], substitutes:['DB Step Ups','Bulgarian Split Squats'], description:"Barbell on back, step up onto platform.", formCues:["Full step up","Drive through top foot","Control down","Don't push off bottom"], muscleGroups:['Legs','Glutes'] },
+    "Rower": { equipment:['Rowing Machine'], substitutes:['Ski Erg','Battle Ropes','Jump Rope'], description:"Rowing machine for full body cardio conditioning.", formCues:["Legs-back-arms sequence","Drive with legs","Control the return","Consistent stroke rate"], muscleGroups:['Cardio','Back','Legs'] },
+    "Barbell Clean - Squat": { equipment:['Barbell'], substitutes:['DB Clean and Squat','KB Clean and Squat'], description:"Clean barbell to shoulders then perform a front squat.", formCues:["Fast elbows in clean","High elbow position","Full depth squat","Drive up strong"], muscleGroups:['Full Body','Legs'] },
+    "Deadball Heel Elevated Squats": { equipment:['Medicine Ball'], substitutes:['Goblet Squats','Heel Elevated Squats'], description:"Hold dead ball at chest, squat with heels elevated for quad emphasis.", formCues:["Upright torso","Deep squat","Knees forward","Drive up through quads"], muscleGroups:['Legs','Quads'] },
+    "SA KB Row": { equipment:['Kettlebells'], substitutes:['Single Arm DB Row','Cable Row'], description:"Single arm kettlebell row for back and grip work.", formCues:["Flat back","Pull to hip","Squeeze at top","Control down"], muscleGroups:['Back','Biceps'] },
+    "Deadball Over Shoulder Throws": { equipment:['Medicine Ball'], substitutes:['Ball Slams','KB Swings'], description:"Pick dead ball from ground and throw over shoulder. Full body power.", formCues:["Hinge to pick up","Explosive hip drive","Rotate and throw","Alternate sides"], muscleGroups:['Full Body','Power'] },
+    "DB Flat Bench": { equipment:['Dumbbells','Bench'], substitutes:['Barbell Bench','Push-Ups'], description:"Flat dumbbell bench press.", formCues:["Full range","Control down","Press up","Stable base"], muscleGroups:['Chest','Triceps'] },
+    "Sled Pushes": { equipment:['Sled'], substitutes:['Prowler Push','Farmer Walks'], description:"Push loaded sled for conditioning and leg drive.", formCues:["Low body angle","Drive through legs","Short powerful steps","Arms extended"], muscleGroups:['Legs','Cardio'] },
+    "Planks": { equipment:[], substitutes:['Dead Bugs','Bird Dogs'], description:"Forearm plank hold for core stability.", formCues:["Neutral spine","Squeeze glutes","Breathe steadily","Don't sag"], muscleGroups:['Core'] },
+    "Walking Lunge - Shoulder Press": { equipment:['Dumbbells'], substitutes:['DB Walking Lunges','Lunge to Press'], description:"Combine walking lunges with overhead press for full body work.", formCues:["Press at top of lunge","Stable core","Big steps","Control both movements"], muscleGroups:['Legs','Shoulders'] },
+    "Tire Flips": { equipment:[], substitutes:['Deadball Throws','KB Swings'], description:"Flip large tire for explosive full body power.", formCues:["Squat to grip","Drive with hips","Push over at top","Full extension"], muscleGroups:['Full Body','Power'] },
 
-        const exercises = {
-            "Barbell Deadlift-Clean-Press": { 
-                equipment: ['Barbell'], 
-                substitutes: ['DB Clean and Press', 'KB Clean and Press'],
-                description: "Explosive full-body movement. Deadlift bar from ground, clean to shoulders, press overhead.",
-                formCues: ["Flat back on deadlift", "Explosive hip drive", "Catch bar on shoulders", "Full lockout"],
-                muscleGroups: ['Full Body', 'Shoulders', 'Legs']
-            },
-            "KB Suitcase Squats": { 
-                equipment: ['Kettlebells'], 
-                substitutes: ['DB Suitcase Squats', 'Goblet Squats'],
-                description: "Hold kettlebell at side like suitcase. Squat keeping torso upright.",
-                formCues: ["Shoulders level", "Core tight", "Squat to parallel", "Drive through heels"],
-                muscleGroups: ['Legs', 'Core']
-            },
-            "Battle Ropes": { 
-                equipment: ['Battle Ropes'], 
-                substitutes: ['Jump Rope', 'High Knees'],
-                description: "Create alternating waves with heavy ropes.",
-                formCues: ["Athletic stance", "Rapid arms", "Maintain rhythm", "Core engaged"],
-                muscleGroups: ['Cardio', 'Arms', 'Core']
-            },
-            "Bulgarian Split Squats": { 
-                equipment: ['Bench', 'Dumbbells'], 
-                substitutes: ['Lunges', 'Step-Ups'],
-                description: "Rear foot elevated, front leg squats. Single-leg builder.",
-                formCues: ["Front shin vertical", "Knee over toe", "Chest up", "Full depth"],
-                muscleGroups: ['Legs', 'Glutes']
-            },
-            "Box Jumps": { 
-                equipment: ['Box/Platform'], 
-                substitutes: ['Jump Squats', 'Step-Ups'],
-                description: "Explosive jump onto platform. Power builder.",
-                formCues: ["Soft landing", "Full hip extension", "Land quietly", "Step down"],
-                muscleGroups: ['Legs', 'Power']
-            },
-            "Goblet Squats": { 
-                equipment: ['Dumbbells'], 
-                substitutes: ['KB Goblet Squat', 'Front Squat'],
-                description: "Hold dumbbell at chest, squat deep.",
-                formCues: ["Elbows between knees", "Chest up", "Deep squat", "Knees out"],
-                muscleGroups: ['Legs', 'Quads']
-            },
-            "Pull Ups": { 
-                equipment: ['Pull-up Bar'], 
-                substitutes: ['Lat Pulldown', 'Inverted Rows'],
-                description: "Overhand grip, pull chin over bar.",
-                formCues: ["Full hang", "Engage lats", "Chest to bar", "Control down"],
-                muscleGroups: ['Back', 'Biceps']
-            },
-            "Barbell Flat Bench": { 
-                equipment: ['Barbell', 'Bench'], 
-                substitutes: ['DB Bench Press', 'Push-Ups'],
-                description: "Classic barbell bench press.",
-                formCues: ["Arch back", "Retract shoulders", "Bar to nipples", "Press up"],
-                muscleGroups: ['Chest', 'Triceps']
-            },
-            "Hex Bar Deadlift": { 
-                equipment: ['Hex Bar'], 
-                substitutes: ['Conventional Deadlift', 'Sumo Deadlift'],
-                description: "Trap bar deadlift. Quad emphasis, back-friendly.",
-                formCues: ["Neutral spine", "Push floor", "Hip extension", "Controlled"],
-                muscleGroups: ['Legs', 'Back']
-            },
-            "Romanian Deadlifts": { 
-                equipment: ['Barbell'], 
-                substitutes: ['DB RDLs', 'Single Leg RDLs'],
-                description: "Hip hinge with slight knee bend. Hamstring focus.",
-                formCues: ["Slight knee bend", "Hips back", "Hamstring stretch", "Bar close"],
-                muscleGroups: ['Hamstrings', 'Glutes']
-            },
-            "DB Bench Press": { 
-                equipment: ['Dumbbells', 'Bench'], 
-                substitutes: ['Barbell Bench', 'Push-Ups'],
-                description: "Dumbbell bench. Greater ROM than barbell.",
-                formCues: ["Full range", "Control down", "Press up and in", "Stable"],
-                muscleGroups: ['Chest', 'Triceps']
-            },
-            "Barbell Rows": { 
-                equipment: ['Barbell'], 
-                substitutes: ['DB Rows', 'Cable Rows'],
-                description: "Bent over row. Back thickness.",
-                formCues: ["Flat back", "Pull to chest", "Squeeze top", "Don't stand"],
-                muscleGroups: ['Back', 'Biceps']
-            }
-        };
+    // Squat Day exercises
+    "Hip Thruster Machine": { equipment:[], substitutes:['Barbell Hip Thrusts','Glute Bridge'], description:"Machine hip thrust for glute isolation and strength.", formCues:["Full hip extension","Squeeze at top","Control eccentric","Drive through heels"], muscleGroups:['Glutes','Hamstrings'] },
+    "Single Arm Lat Pulldown": { equipment:['Cable Machine'], substitutes:['Single Arm DB Row','Band Pulldown'], description:"Unilateral lat pulldown for balanced back development.", formCues:["Full stretch at top","Pull to shoulder","Squeeze lat","Control return"], muscleGroups:['Back','Biceps'] },
+    "Heel Elevated Goblet Squat": { equipment:['Dumbbells'], substitutes:['Goblet Squats','Front Squats'], description:"Goblet squat with heels elevated for increased quad emphasis and depth.", formCues:["Elbows between knees","Upright torso","Deep squat","Knees forward"], muscleGroups:['Legs','Quads'] },
+    "Pull Ups": { equipment:['Pull-up Bar'], substitutes:['Lat Pulldown','Inverted Rows','Band Pull Ups'], description:"Overhand grip, pull chin over bar. Premier back exercise.", formCues:["Full dead hang","Engage lats first","Chest to bar","Control descent"], muscleGroups:['Back','Biceps'] },
+    "SA Landmine Shoulder Press": { equipment:['Barbell'], substitutes:['DB Shoulder Press','KB Press'], description:"Single arm press using landmine for shoulder-friendly pressing.", formCues:["Brace core","Press at angle","Full lockout","Control down"], muscleGroups:['Shoulders'] },
+    "Goblet Squats": { equipment:['Dumbbells'], substitutes:['KB Goblet Squat','Front Squat'], description:"Hold dumbbell at chest, squat deep.", formCues:["Elbows between knees","Chest up","Deep squat","Knees out"], muscleGroups:['Legs','Quads'] },
+    "Barbell Back Squat": { equipment:['Barbell','Squat Rack'], substitutes:['Front Squat','Goblet Squat','Leg Press'], description:"Back squat with barbell. King of leg exercises.", formCues:["Brace core","Break at hips and knees","Depth below parallel","Drive up strong"], muscleGroups:['Legs','Glutes','Core'] },
+    "KB Bulgarian Split Squats": { equipment:['Kettlebells','Bench'], substitutes:['DB Bulgarian Split Squats','Lunges'], description:"Bulgarian split squat holding kettlebells.", formCues:["Front shin vertical","Upright torso","Full depth","Drive through front heel"], muscleGroups:['Legs','Glutes'] },
+    "KB Standing Shoulder Press": { equipment:['Kettlebells'], substitutes:['DB Shoulder Press','Barbell Press'], description:"Standing kettlebell overhead press.", formCues:["Core braced","Press vertically","Full lockout","Control down"], muscleGroups:['Shoulders'] },
+    "Heel Elevated Barbell Back Squat": { equipment:['Barbell','Squat Rack'], substitutes:['Heel Elevated Goblet Squat','Front Squat'], description:"Back squat with heels elevated for greater quad emphasis.", formCues:["Upright torso","Knees forward","Full depth","Drive up explosively"], muscleGroups:['Legs','Quads'] },
+    "Seated DB Shoulder Press": { equipment:['Dumbbells','Bench'], substitutes:['Standing DB Press','Machine Press'], description:"Seated dumbbell shoulder press for strict pressing.", formCues:["Back against bench","Press to full lockout","Control down","Don't flare elbows"], muscleGroups:['Shoulders','Triceps'] },
+    "DB Bulgarian Split Squats": { equipment:['Dumbbells','Bench'], substitutes:['KB Bulgarian Split Squats','Lunges'], description:"Bulgarian split squats holding dumbbells.", formCues:["Front shin vertical","Upright torso","Full depth","Drive through front heel"], muscleGroups:['Legs','Glutes'] },
+    "Single Leg Press": { equipment:['Leg Press'], substitutes:['Bulgarian Split Squats','Pistol Squats'], description:"Single leg press for unilateral quad work.", formCues:["Full range","Don't lock out","Control down","Drive through heel"], muscleGroups:['Legs','Quads'] },
+    "Cable Tricep Extension": { equipment:['Cable Machine'], substitutes:['Tricep Dips','Skull Crushers'], description:"Cable tricep pushdown for tricep isolation.", formCues:["Elbows pinned","Full extension","Squeeze at bottom","Control return"], muscleGroups:['Triceps'] },
+    "V Squat": { equipment:[], substitutes:['Hack Squat','Barbell Back Squat'], description:"V-squat machine for leg development with back support.", formCues:["Feet shoulder width","Full depth","Drive through legs","Don't lock knees"], muscleGroups:['Legs','Quads'] },
+    "Hip Mobility": { equipment:[], substitutes:[], description:"Hip mobility drills between sets.", formCues:["90/90 stretches","Hip circles","Pigeon pose","Frog stretch"], muscleGroups:['Mobility'] },
+    "Kettlebell Walks": { equipment:['Kettlebells'], substitutes:['Farmer Walks','DB Carries'], description:"Loaded carries with kettlebells for grip and core.", formCues:["Tall posture","Engage core","Steady pace","Shoulders back"], muscleGroups:['Core','Grip'] },
+    "Push Up Circuit": { equipment:[], substitutes:['Push Ups','Dips'], description:"Various push-up variations performed in circuit.", formCues:["Full range","Good form each rep","Minimize rest","Scale as needed"], muscleGroups:['Chest','Triceps'] },
 
-        const workoutPrograms = {
-            cleanpress: {
-                name: "Clean-Press Day",
-                variations: [[
-                    { name: "Barbell Deadlift-Clean-Press", sets: 4, reps: "10-12", rest: 60 },
-                    { name: "KB Suitcase Squats", sets: 4, reps: "10-12", rest: 120 },
-                    { name: "Battle Ropes", sets: 4, reps: "30-60 sec", rest: 60 },
-                    { name: "Bulgarian Split Squats", sets: 4, reps: "10-12", rest: 60 },
-                    { name: "Box Jumps", sets: 4, reps: "10-12", rest: 60 }
-                ]]
-            },
-            squat: {
-                name: "Squat Day",
-                variations: [[
-                    { name: "Goblet Squats", sets: 4, reps: "10-15", rest: 60 },
-                    { name: "Romanian Deadlifts", sets: 4, reps: "10-12", rest: 90 },
-                    { name: "Pull Ups", sets: 4, reps: "AMRAP", rest: 60 },
-                    { name: "Bulgarian Split Squats", sets: 4, reps: "10-12", rest: 60 }
-                ]]
-            },
-            deadlift: {
-                name: "Deadlift Day",
-                variations: [[
-                    { name: "Hex Bar Deadlift", sets: 4, reps: "8-10", rest: 120 },
-                    { name: "Bulgarian Split Squats", sets: 4, reps: "10-12", rest: 60 },
-                    { name: "Pull Ups", sets: 4, reps: "AMRAP", rest: 60 },
-                    { name: "Battle Ropes", sets: 4, reps: "30-60 sec", rest: 60 }
-                ]]
-            },
-            bench: {
-                name: "Bench/Back Day",
-                variations: [[
-                    { name: "Barbell Flat Bench", sets: 4, reps: "8-12", rest: 120 },
-                    { name: "Pull Ups", sets: 4, reps: "AMRAP", rest: 60 },
-                    { name: "DB Bench Press", sets: 4, reps: "10-12", rest: 90 },
-                    { name: "Barbell Rows", sets: 4, reps: "8-10", rest: 60 }
-                ]]
-            },
-            extra: {
-                name: "Extra Day",
-                variations: [[
-                    { name: "Pull Ups", sets: 4, reps: "AMRAP", rest: 90 },
-                    { name: "DB Bench Press", sets: 3, reps: "10-12", rest: 60 },
-                    { name: "Barbell Rows", sets: 3, reps: "10-12", rest: 60 },
-                    { name: "Bulgarian Split Squats", sets: 3, reps: "10-12", rest: 60 },
-                    { name: "Battle Ropes", sets: 3, reps: "30-60 sec", rest: 60 }
-                ]]
-            }
-        };
+    // Deadlift Day exercises
+    "Hex Bar Deadlift": { equipment:['Hex Bar'], substitutes:['Conventional Deadlift','Sumo Deadlift','Barbell Deadlift'], description:"Trap bar deadlift. Quad emphasis, more back-friendly.", formCues:["Neutral spine","Push floor away","Full hip extension","Controlled descent"], muscleGroups:['Legs','Back','Glutes'] },
+    "Standing Kettle Press": { equipment:['Kettlebells'], substitutes:['DB Shoulder Press','Barbell Press'], description:"Standing kettlebell overhead press.", formCues:["Core braced","Press vertically","Full lockout","Control down"], muscleGroups:['Shoulders'] },
+    "KB Walking Lunges": { equipment:['Kettlebells'], substitutes:['DB Walking Lunges','Barbell Lunges'], description:"Walking lunges holding kettlebells.", formCues:["Big steps","Knee over ankle","Upright torso","Alternate legs"], muscleGroups:['Legs','Glutes'] },
+    "Sled Push/Pull": { equipment:['Sled'], substitutes:['Farmer Walks','Battle Ropes'], description:"Push sled down, pull it back for full body conditioning.", formCues:["Low angle push","Hand over hand pull","Drive with legs","Stay low"], muscleGroups:['Full Body','Cardio'] },
+    "Standing DB Shoulder Press": { equipment:['Dumbbells'], substitutes:['KB Press','Barbell Press'], description:"Standing dumbbell overhead press.", formCues:["Core tight","Press overhead","Full lockout","Don't lean back"], muscleGroups:['Shoulders','Triceps'] },
+    "Dead Ball Slams": { equipment:['Medicine Ball'], substitutes:['Ball Slams','KB Swings'], description:"Overhead slam of dead ball for power and conditioning.", formCues:["Full overhead reach","Slam with force","Hinge to pick up","Explosive rhythm"], muscleGroups:['Full Body','Core'] },
+    "Walking Lunges Plate Overhead": { equipment:[], substitutes:['DB Walking Lunges','Overhead Lunges'], description:"Walking lunges holding plate overhead for added core challenge.", formCues:["Arms locked out","Plate directly overhead","Steady pace","Full lunge depth"], muscleGroups:['Legs','Shoulders','Core'] },
+    "DB Lateral Raises": { equipment:['Dumbbells'], substitutes:['Cable Lateral Raises','Band Lateral Raises'], description:"Dumbbell lateral raises for side delt development.", formCues:["Slight lean forward","Lead with elbows","Don't swing","Control down"], muscleGroups:['Shoulders'] },
+    "Push Up/Dip Circuit": { equipment:[], substitutes:['Push Ups','Dips'], description:"Alternating push-ups and dips in circuit format.", formCues:["Full range each","Minimize rest","Maintain form","Scale as needed"], muscleGroups:['Chest','Triceps'] },
+    "Over Shoulder Dead Ball Throws": { equipment:['Medicine Ball'], substitutes:['KB Swings','Ball Slams'], description:"Pick up dead ball and throw over shoulder explosively.", formCues:["Deep squat to pick up","Explosive hip drive","Alternate sides","Full extension"], muscleGroups:['Full Body','Power'] },
+    "Ball Slams": { equipment:['Medicine Ball'], substitutes:['Dead Ball Slams','KB Swings'], description:"Overhead ball slam for power conditioning.", formCues:["Full extension overhead","Slam hard","Hinge to pick up","Fast tempo"], muscleGroups:['Full Body','Core'] },
+    "Seated Band Rows": { equipment:['Resistance Bands'], substitutes:['Cable Rows','DB Rows'], description:"Seated row using resistance band.", formCues:["Sit tall","Pull to chest","Squeeze shoulder blades","Control return"], muscleGroups:['Back'] },
+    "Cable Lat Pulldown": { equipment:['Cable Machine'], substitutes:['Pull Ups','Band Pulldowns'], description:"Cable lat pulldown for back width.", formCues:["Lean slightly back","Pull to chest","Squeeze lats","Full stretch"], muscleGroups:['Back','Biceps'] },
+    "Cable Straight Bar Tricep Extension": { equipment:['Cable Machine'], substitutes:['Tricep Dips','DB Tricep Extension'], description:"Straight bar cable tricep pushdown.", formCues:["Elbows pinned","Full extension","Squeeze at bottom","Control up"], muscleGroups:['Triceps'] },
+    "2 Handle Cable Lat Pulldown": { equipment:['Cable Machine'], substitutes:['Pull Ups','Lat Pulldown Machine'], description:"Lat pulldown with individual handles for independent arm work.", formCues:["Full stretch at top","Pull wide to narrow","Squeeze back","Control return"], muscleGroups:['Back','Biceps'] },
+    "Incline Machine Press": { equipment:[], substitutes:['Incline DB Press','Incline Barbell Press'], description:"Incline press machine for upper chest emphasis.", formCues:["Chest up","Full range","Press to lockout","Control down"], muscleGroups:['Chest','Shoulders'] },
+    "KB Bulgarian Split Squats DL": { equipment:['Kettlebells','Bench'], substitutes:['DB Bulgarian Split Squats','Lunges'], description:"Bulgarian split squat holding kettlebells.", formCues:["Front shin vertical","Upright torso","Full depth","Drive through front heel"], muscleGroups:['Legs','Glutes'] },
+    "Yoga Ball Plank": { equipment:['Medicine Ball'], substitutes:['Planks','Dead Bugs'], description:"Plank with forearms on stability ball.", formCues:["Neutral spine","Squeeze glutes","Don't sag","Breathe steady"], muscleGroups:['Core'] },
+    "DB Flat Bench DL": { equipment:['Dumbbells','Bench'], substitutes:['Barbell Bench','Push-Ups'], description:"Flat dumbbell bench press.", formCues:["Full range","Control down","Press up","Stable base"], muscleGroups:['Chest','Triceps'] },
+    "Heel Elevated Goblet Squats": { equipment:['Dumbbells'], substitutes:['Goblet Squats','Front Squats'], description:"Goblet squat with heels elevated for quad emphasis.", formCues:["Elbows between knees","Upright torso","Deep squat","Drive up"], muscleGroups:['Legs','Quads'] },
+    "Deadball Over-Shoulder Toss": { equipment:['Medicine Ball'], substitutes:['KB Swings','Ball Slams'], description:"Explosive dead ball throw over shoulder for power.", formCues:["Deep pickup","Hip drive","Rotate and throw","Alternate sides"], muscleGroups:['Full Body','Power'] },
 
-        function RestTimer({ seconds, onComplete }) {
-            const [timeLeft, setTimeLeft] = useState(seconds);
-            
-            useEffect(() => {
-                if (timeLeft <= 0) {
-                    onComplete();
-                    return;
-                }
-                const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-                return () => clearTimeout(timer);
-            }, [timeLeft]);
+    // Bench/Back exercises
+    "Barbell Flat Bench": { equipment:['Barbell','Bench'], substitutes:['DB Bench Press','Machine Press','Push-Ups'], description:"Classic barbell bench press. Primary chest builder.", formCues:["Arch back slightly","Retract shoulder blades","Bar to mid-chest","Full lockout"], muscleGroups:['Chest','Triceps'] },
+    "Barbell Rows": { equipment:['Barbell'], substitutes:['DB Rows','Cable Rows','T-Bar Rows'], description:"Bent over barbell row for back thickness.", formCues:["Flat back","Pull to lower chest","Squeeze top","Don't jerk up"], muscleGroups:['Back','Biceps'] },
+    "Deadball Side Slams + Burpees": { equipment:['Medicine Ball'], substitutes:['Ball Slams','Burpees'], description:"Dead ball side slams combined with burpees for conditioning.", formCues:["Explosive slams","Quick burpee","Alternate sides","Maintain pace"], muscleGroups:['Full Body','Core','Cardio'] },
+    "Machine Flys": { equipment:[], substitutes:['Cable Flys','DB Flys'], description:"Machine fly for chest isolation.", formCues:["Slight bend in elbows","Squeeze at center","Full stretch","Control return"], muscleGroups:['Chest'] },
+    "2 Cable Pullovers": { equipment:['Cable Machine'], substitutes:['DB Pullovers','Straight Arm Pulldowns'], description:"Cable pullover for lat and chest work.", formCues:["Slight bend in elbows","Full stretch overhead","Pull to hips","Control return"], muscleGroups:['Back','Chest'] },
+    "Dips": { equipment:['Dip Station'], substitutes:['Bench Dips','Tricep Pushdowns'], description:"Parallel bar dips for chest and tricep development.", formCues:["Lean forward for chest","Elbows to 90°","Full lockout","Control descent"], muscleGroups:['Chest','Triceps'] },
+    "Row Machine": { equipment:[], substitutes:['Cable Rows','DB Rows'], description:"Seated row machine for back development.", formCues:["Sit tall","Pull to chest","Squeeze back","Control return"], muscleGroups:['Back'] },
+    "Cable Shoulder Press": { equipment:['Cable Machine'], substitutes:['DB Shoulder Press','Machine Press'], description:"Cable shoulder press for constant tension.", formCues:["Core braced","Press overhead","Control down","Full lockout"], muscleGroups:['Shoulders'] },
+    "DB Incline Bench": { equipment:['Dumbbells','Bench'], substitutes:['Incline Barbell Press','Incline Machine'], description:"Incline dumbbell bench for upper chest.", formCues:["30-45° incline","Full stretch at bottom","Press up and in","Squeeze at top"], muscleGroups:['Chest','Shoulders'] },
+    "DB Curls": { equipment:['Dumbbells'], substitutes:['Barbell Curls','Cable Curls'], description:"Dumbbell bicep curls.", formCues:["Control movement","Full range","Don't swing","Squeeze at top"], muscleGroups:['Biceps'] },
+    "DB Chest Supported Rows": { equipment:['Dumbbells','Bench'], substitutes:['Barbell Rows','Cable Rows'], description:"Chest supported dumbbell rows eliminate momentum.", formCues:["Chest on bench","Pull to hips","Squeeze back","Control down"], muscleGroups:['Back'] },
+    "Barbell Bicep Curls": { equipment:['Barbell'], substitutes:['DB Curls','Cable Curls'], description:"Barbell curls for bicep mass.", formCues:["Elbows pinned","Full range","Don't swing","Squeeze at top"], muscleGroups:['Biceps'] },
+    "2 Handle Lat Pull-down": { equipment:['Cable Machine'], substitutes:['Pull Ups','Lat Pulldown Machine'], description:"Lat pulldown with individual handles.", formCues:["Full stretch","Pull wide to narrow","Squeeze lats","Control return"], muscleGroups:['Back','Biceps'] },
+    "Straight Bar Tricep Pushdown": { equipment:['Cable Machine'], substitutes:['Rope Pushdown','Dips'], description:"Straight bar tricep pushdown for tricep isolation.", formCues:["Elbows pinned","Full extension","Squeeze at bottom","Control up"], muscleGroups:['Triceps'] },
+    "Machine Row": { equipment:[], substitutes:['Cable Rows','DB Rows'], description:"Machine seated row for back development.", formCues:["Chest against pad","Pull to chest","Squeeze back","Full stretch"], muscleGroups:['Back'] },
+    "Tricep Press Machine": { equipment:[], substitutes:['Tricep Pushdowns','Dips'], description:"Machine tricep press for isolation.", formCues:["Elbows in","Full extension","Control return","Don't lock joints hard"], muscleGroups:['Triceps'] },
+    "DB Shoulder Press": { equipment:['Dumbbells'], substitutes:['Barbell Press','Machine Press'], description:"Dumbbell shoulder press.", formCues:["Core braced","Press to lockout","Control descent","Don't lean back"], muscleGroups:['Shoulders','Triceps'] },
+    "Lat Pull-down": { equipment:['Cable Machine'], substitutes:['Pull Ups','Band Pulldowns'], description:"Standard lat pulldown.", formCues:["Lean slightly back","Pull to upper chest","Squeeze lats","Full stretch"], muscleGroups:['Back','Biceps'] },
+    "Cable Curls": { equipment:['Cable Machine'], substitutes:['DB Curls','Barbell Curls'], description:"Cable curls for constant tension on biceps.", formCues:["Elbows pinned","Full range","Squeeze at top","Control down"], muscleGroups:['Biceps'] },
 
-            return (
-                <div className="rest-timer bg-green-500 text-white px-6 py-4 rounded-full shadow-2xl">
-                    <div className="text-center">
-                        <div className="text-sm font-bold">REST</div>
-                        <div className="text-3xl font-bold">{timeLeft}s</div>
-                    </div>
-                </div>
-            );
+    // Extra workouts
+    "Standing Barbell Shoulder Press": { equipment:['Barbell'], substitutes:['DB Shoulder Press','KB Press'], description:"Standing barbell overhead press.", formCues:["Core braced","Press overhead","Full lockout","Control down"], muscleGroups:['Shoulders','Triceps'] },
+    "Hack Squat": { equipment:[], substitutes:['Leg Press','V Squat'], description:"Hack squat machine for quad development.", formCues:["Feet shoulder width","Full depth","Drive through legs","Don't lock knees"], muscleGroups:['Legs','Quads'] },
+    "V Handle Tricep Pushdown": { equipment:['Cable Machine'], substitutes:['Straight Bar Pushdown','Dips'], description:"V-handle cable tricep pushdown.", formCues:["Elbows pinned","Full extension","Squeeze at bottom","Control up"], muscleGroups:['Triceps'] },
+    "Leg Press": { equipment:['Leg Press'], substitutes:['Hack Squat','Barbell Back Squat'], description:"Leg press machine for heavy leg training.", formCues:["Feet shoulder width","Full range","Don't lock knees","Control down"], muscleGroups:['Legs','Quads'] },
+    "SA DB Shoulder Press": { equipment:['Dumbbells'], substitutes:['Barbell Press','KB Press'], description:"Single arm dumbbell shoulder press.", formCues:["Core engaged","Press vertically","Control down","Don't lean"], muscleGroups:['Shoulders','Core'] },
+    "DB Tricep Extensions": { equipment:['Dumbbells'], substitutes:['Cable Pushdowns','Skull Crushers'], description:"Overhead dumbbell tricep extensions.", formCues:["Elbows close to head","Full stretch","Extend to lockout","Control down"], muscleGroups:['Triceps'] },
+    "Shoulder Press Machine": { equipment:[], substitutes:['DB Shoulder Press','Barbell Press'], description:"Machine shoulder press.", formCues:["Back against pad","Press to lockout","Control down","Don't flare elbows"], muscleGroups:['Shoulders'] },
+    "Lat Pulldown": { equipment:['Cable Machine'], substitutes:['Pull Ups','Band Pulldowns'], description:"Standard lat pulldown for back width.", formCues:["Full stretch","Pull to chest","Squeeze lats","Lean slightly back"], muscleGroups:['Back','Biceps'] },
+    "DB Lateral Raises Extra": { equipment:['Dumbbells'], substitutes:['Cable Lateral Raises','Band Raises'], description:"Dumbbell lateral raises.", formCues:["Slight lean","Lead with elbows","Don't swing","Control down"], muscleGroups:['Shoulders'] },
+    "Seated Row": { equipment:[], substitutes:['Cable Rows','DB Rows'], description:"Seated row machine.", formCues:["Sit tall","Pull to chest","Squeeze back","Full stretch"], muscleGroups:['Back'] },
+    "Seated Shoulder Press": { equipment:[], substitutes:['DB Press','Machine Press'], description:"Seated shoulder press.", formCues:["Back supported","Press overhead","Full lockout","Control descent"], muscleGroups:['Shoulders'] },
+    "Bent Over Row": { equipment:['Barbell'], substitutes:['DB Rows','Cable Rows'], description:"Bent over row for back thickness.", formCues:["Flat back","Pull to chest","Squeeze","Control down"], muscleGroups:['Back'] },
+    "DB Bicep Curls": { equipment:['Dumbbells'], substitutes:['Barbell Curls','Cable Curls'], description:"Dumbbell bicep curls.", formCues:["Full range","Don't swing","Squeeze at top","Control down"], muscleGroups:['Biceps'] },
+    "Romanian Deadlifts": { equipment:['Barbell'], substitutes:['DB RDLs','Single Leg RDLs'], description:"Hip hinge with slight knee bend. Hamstring focus.", formCues:["Slight knee bend","Hips back","Hamstring stretch","Bar close to legs"], muscleGroups:['Hamstrings','Glutes'] },
+    "Lifefitness Chest Press": { equipment:[], substitutes:['DB Bench','Barbell Bench'], description:"Life Fitness chest press machine.", formCues:["Chest up","Full range","Press to lockout","Control eccentric"], muscleGroups:['Chest','Triceps'] },
+    "Lifefitness Seated Row": { equipment:[], substitutes:['Cable Rows','DB Rows'], description:"Life Fitness seated row machine.", formCues:["Sit tall","Pull to chest","Squeeze back","Control return"], muscleGroups:['Back'] },
+    "Tricep Extensions": { equipment:['Cable Machine'], substitutes:['Dips','DB Tricep Extensions'], description:"Cable or machine tricep extensions.", formCues:["Elbows pinned","Full extension","Squeeze at bottom","Control up"], muscleGroups:['Triceps'] },
+};
+
+// ─── Workout Programs with 3 Variations ───
+const workoutPrograms = {
+    cleanpress: {
+        name: "Clean-Press Day",
+        icon: "🏋️",
+        color: "#6366f1",
+        variations: [
+            [
+                { name:"Barbell Deadlift-Clean-Press", sets:4, reps:"10-12", rest:60 },
+                { name:"KB Suitcase Squats", sets:4, reps:"10-12", rest:120 },
+                { name:"Battle Ropes", sets:4, reps:"30-60 sec", rest:60 },
+                { name:"Bulgarian Split Squats", sets:4, reps:"10-12", rest:60 },
+                { name:"Yoga Ball Planks", sets:4, reps:"30-60 sec", rest:60 },
+                { name:"Dead Ball Side-to-Side Slam", sets:4, reps:"30-60 sec", rest:60 },
+            ],
+            [
+                { name:"Barbell Deadlift-Clean-Press", sets:4, reps:"10-12", rest:60 },
+                { name:"Box Jumps", sets:4, reps:"10-15", rest:60 },
+                { name:"DB Walking Lunges", sets:4, reps:"10-12", rest:60 },
+                { name:"Chin Ups", sets:4, reps:"AMRAP", rest:60 },
+                { name:"Sled Rows", sets:4, reps:"10-12", rest:60 },
+                { name:"Renegade Rows", sets:4, reps:"30-60 sec", rest:60 },
+            ],
+            [
+                { name:"Barbell Deadlift-Clean-Press", sets:4, reps:"8-10", rest:60 },
+                { name:"Box Jumps", sets:4, reps:"10-15", rest:60 },
+                { name:"DB Bench Press", sets:4, reps:"10-12", rest:60 },
+                { name:"Tire Flips", sets:4, reps:"30-60 sec", rest:60 },
+                { name:"Ski Erg", sets:4, reps:"100-300m", rest:60 },
+                { name:"Push Ups", sets:4, reps:"10-15", rest:60 },
+            ],
+        ],
+        cardioFinisher: {
+            title: "Cardio Finisher",
+            options: [
+                { name:"Battle Ropes Tabata", description:"8 rounds: 20 sec work / 10 sec rest" },
+                { name:"Ski Erg Intervals", description:"4 rounds: 200m sprint, 1 min rest" },
+                { name:"Assault Bike Sprint", description:"10 min: 30 sec sprint / 30 sec easy" },
+            ]
         }
-
-        function WorkoutTimer({ startTime }) {
-            const [elapsed, setElapsed] = useState(0);
-
-            useEffect(() => {
-                const interval = setInterval(() => {
-                    setElapsed(Math.floor((Date.now() - startTime) / 1000));
-                }, 1000);
-                return () => clearInterval(interval);
-            }, [startTime]);
-
-            const minutes = Math.floor(elapsed / 60);
-            const seconds = elapsed % 60;
-
-            return (
-                <div className="bg-purple-700 text-white px-4 py-2 rounded-lg text-center">
-                    <div className="text-xs font-bold">WORKOUT TIME</div>
-                    <div className="text-2xl font-bold">
-                        {minutes}:{seconds.toString().padStart(2, '0')}
-                    </div>
-                </div>
-            );
+    },
+    squat: {
+        name: "Squat Day",
+        icon: "🦵",
+        color: "#8b5cf6",
+        variations: [
+            [
+                { name:"Hip Thruster Machine", sets:4, reps:"10-12", rest:120 },
+                { name:"Single Arm Lat Pulldown", sets:4, reps:"10-12", rest:60 },
+                { name:"Heel Elevated Goblet Squat", sets:4, reps:"10-15", rest:60 },
+                { name:"Pull Ups", sets:4, reps:"AMRAP", rest:60 },
+                { name:"Rower", sets:4, reps:"30-90 sec", rest:60 },
+                { name:"Sled Rows", sets:4, reps:"15-25", rest:60 },
+            ],
+            [
+                { name:"Barbell Back Squat", sets:4, reps:"6-8", rest:120 },
+                { name:"KB Bulgarian Split Squats", sets:4, reps:"10-12", rest:60 },
+                { name:"KB Standing Shoulder Press", sets:4, reps:"10-12", rest:60 },
+                { name:"Rower", sets:3, reps:"200m", rest:60 },
+                { name:"Battle Ropes", sets:3, reps:"30-60 sec", rest:60 },
+            ],
+            [
+                { name:"Heel Elevated Barbell Back Squat", sets:4, reps:"6-8", rest:120 },
+                { name:"Seated DB Shoulder Press", sets:4, reps:"10-12", rest:60 },
+                { name:"DB Bulgarian Split Squats", sets:4, reps:"10-12", rest:60 },
+                { name:"Rower", sets:3, reps:"200m", rest:60 },
+                { name:"Battle Ropes", sets:3, reps:"30-60 sec", rest:60 },
+            ],
+        ],
+        cardioFinisher: {
+            title: "Cardio Finisher",
+            options: [
+                { name:"Rower + Ropes Circuit", description:"3 rounds: 250m row, 30 sec ropes, 1 min rest" },
+                { name:"Push-Up + KB Walk Circuit", description:"3 rounds: 15 push-ups, 100m KB walk" },
+                { name:"Bodyweight Burnout", description:"50 air squats, 40 lunges, 30 jump squats, 20 burpees" },
+            ]
         }
+    },
+    deadlift: {
+        name: "Deadlift Day",
+        icon: "💀",
+        color: "#ec4899",
+        variations: [
+            [
+                { name:"Hex Bar Deadlift", sets:4, reps:"8-10", rest:120 },
+                { name:"Battle Ropes", sets:4, reps:"30-60 sec", rest:60 },
+                { name:"Standing DB Shoulder Press", sets:4, reps:"10-12", rest:60 },
+                { name:"Box Jumps", sets:4, reps:"10-15", rest:60 },
+                { name:"KB Walking Lunges", sets:4, reps:"10-12", rest:60 },
+                { name:"Push Up/Dip Circuit", sets:4, reps:"30-60 sec", rest:60 },
+            ],
+            [
+                { name:"Hex Bar Deadlift", sets:4, reps:"8-10", rest:120 },
+                { name:"Over Shoulder Dead Ball Throws", sets:4, reps:"10-20", rest:60 },
+                { name:"KB Bulgarian Split Squats", sets:4, reps:"10-12", rest:60 },
+                { name:"Seated DB Shoulder Press", sets:4, reps:"10-12", rest:60 },
+                { name:"Walking Lunges Plate Overhead", sets:4, reps:"10-12", rest:60 },
+                { name:"DB Lateral Raises", sets:4, reps:"10-12", rest:60 },
+            ],
+            [
+                { name:"Hex Bar Deadlift", sets:4, reps:"6-8", rest:120 },
+                { name:"DB Flat Bench", sets:4, reps:"10-12", rest:60 },
+                { name:"Heel Elevated Goblet Squats", sets:4, reps:"10-12", rest:60 },
+                { name:"Ski Erg", sets:4, reps:"100-300m", rest:60 },
+                { name:"Battle Ropes", sets:4, reps:"30-60 sec", rest:60 },
+                { name:"Deadball Over-Shoulder Toss", sets:4, reps:"10-20", rest:60 },
+            ],
+        ],
+        cardioFinisher: {
+            title: "Cardio Finisher",
+            options: [
+                { name:"Sled Push + Pull", description:"4 rounds: push 40m, pull back, 1 min rest" },
+                { name:"Rower Pyramid", description:"100m, 200m, 300m, 200m, 100m — 1 min rest between" },
+                { name:"Battle Ropes EMOM", description:"10 min EMOM: 20 sec max effort ropes" },
+            ]
+        }
+    },
+    bench: {
+        name: "Bench/Back Day",
+        icon: "🏋️‍♂️",
+        color: "#f59e0b",
+        variations: [
+            [
+                { name:"Barbell Flat Bench", sets:4, reps:"8-12", rest:120 },
+                { name:"Pull Ups", sets:4, reps:"AMRAP", rest:60 },
+                { name:"Bulgarian Split Squats", sets:4, reps:"10-12", rest:60 },
+                { name:"Battle Ropes", sets:4, reps:"30-60 sec", rest:60 },
+                { name:"Ski Erg", sets:4, reps:"30-60 sec", rest:60 },
+                { name:"Deadball Side Slams + Burpees", sets:4, reps:"30-60 sec", rest:60 },
+            ],
+            [
+                { name:"Barbell Flat Bench", sets:4, reps:"8-12", rest:120 },
+                { name:"Pull Ups", sets:4, reps:"AMRAP", rest:60 },
+                { name:"Machine Flys", sets:4, reps:"12-15", rest:60 },
+                { name:"2 Cable Pullovers", sets:4, reps:"12-15", rest:60 },
+                { name:"Dips", sets:3, reps:"8-12", rest:60 },
+                { name:"Rower", sets:3, reps:"100-300m", rest:60 },
+            ],
+            [
+                { name:"Barbell Flat Bench", sets:4, reps:"6-10", rest:120 },
+                { name:"Pull Ups", sets:4, reps:"AMRAP", rest:60 },
+                { name:"DB Incline Bench", sets:4, reps:"8-12", rest:60 },
+                { name:"DB Chest Supported Rows", sets:4, reps:"10-12", rest:60 },
+                { name:"Straight Bar Tricep Pushdown", sets:4, reps:"10-12", rest:60 },
+                { name:"Rower", sets:3, reps:"100-300m", rest:60 },
+            ],
+        ],
+        cardioFinisher: {
+            title: "Cardio Finisher",
+            options: [
+                { name:"Ski Erg + Rower Relay", description:"4 rounds: 150m ski, 150m row, 1 min rest" },
+                { name:"Dips + Push-Up Ladder", description:"10-8-6-4-2 dips, 5-10-15-20-25 push-ups" },
+                { name:"5 Min AMRAP", description:"5 burpees, 10 push-ups, 15 air squats — max rounds" },
+            ]
+        }
+    },
+    extra: {
+        name: "Extra Day",
+        icon: "⚡",
+        color: "#10b981",
+        variations: [
+            [
+                { name:"Standing Barbell Shoulder Press", sets:4, reps:"8-10", rest:60 },
+                { name:"DB Curls", sets:4, reps:"10-12", rest:60 },
+                { name:"DB Bench Press", sets:4, reps:"10-12", rest:60 },
+                { name:"DB Lateral Raises", sets:4, reps:"10-12", rest:60 },
+                { name:"Machine Row", sets:3, reps:"10-12", rest:60 },
+                { name:"Tricep Extensions", sets:3, reps:"10-12", rest:60 },
+            ],
+            [
+                { name:"Leg Press", sets:4, reps:"10-12", rest:60 },
+                { name:"SA DB Shoulder Press", sets:4, reps:"8-10", rest:60 },
+                { name:"Lat Pulldown", sets:4, reps:"10-12", rest:60 },
+                { name:"DB Tricep Extensions", sets:4, reps:"10-12", rest:60 },
+                { name:"Shoulder Press Machine", sets:3, reps:"10-12", rest:60 },
+                { name:"Cable Curls", sets:3, reps:"10-12", rest:60 },
+            ],
+            [
+                { name:"Hack Squat", sets:3, reps:"10-12", rest:90 },
+                { name:"DB Bench Press", sets:3, reps:"10-12", rest:60 },
+                { name:"Bulgarian Split Squats", sets:3, reps:"10-12", rest:60 },
+                { name:"Lat Pulldown", sets:3, reps:"10-12", rest:60 },
+                { name:"V Handle Tricep Pushdown", sets:3, reps:"10-12", rest:60 },
+            ],
+        ],
+        cardioFinisher: {
+            title: "Cardio Finisher",
+            options: [
+                { name:"Countdown Chipper", description:"100 mountain climbers, 75 jump squats, 50 lunges, 25 tire flips, 10 burpees" },
+                { name:"4-Min Rounds", description:"4 rounds: 20 cal bike, 200m row, 10 burpees — rest between rounds" },
+                { name:"15-Min AMRAP Ladder", description:"Start at 4 reps: burpees, cal row, inchworms, v-ups — add 2 reps each round" },
+            ]
+        }
+    },
+};
 
-        function SetTimer({ onComplete, onCancel }) {
-            const [seconds, setSeconds] = useState(0);
-            const [isRunning, setIsRunning] = useState(false);
+const allEquipment = ['Barbell','Dumbbells','Kettlebells','Cable Machine','Pull-up Bar','Bench','Squat Rack','Leg Press','Rowing Machine','Treadmill','Battle Ropes','Sled','Box/Platform','Medicine Ball','Resistance Bands','Dip Station','Hex Bar'];
 
-            useEffect(() => {
-                if (!isRunning) return;
-                const interval = setInterval(() => {
-                    setSeconds(s => s + 1);
-                }, 1000);
-                return () => clearInterval(interval);
-            }, [isRunning]);
+// ─── Components ───
 
-            const formatTime = (secs) => {
-                const mins = Math.floor(secs / 60);
-                const remainingSecs = secs % 60;
-                return `${mins}:${remainingSecs.toString().padStart(2, '0')}`;
-            };
+function RestTimer({ seconds, onComplete }) {
+    const [timeLeft, setTimeLeft] = useState(seconds);
+    useEffect(() => {
+        if (timeLeft<=0) { onComplete(); return; }
+        const t = setTimeout(()=>setTimeLeft(timeLeft-1),1000);
+        return ()=>clearTimeout(t);
+    }, [timeLeft]);
+    const pct = ((seconds-timeLeft)/seconds)*100;
+    return (
+        <div style={{position:'fixed',bottom:20,right:20,zIndex:1000,background:'#1a1a2e',border:'2px solid #6366f1',borderRadius:20,padding:'16px 24px',boxShadow:'0 8px 32px rgba(99,102,241,0.3)'}}>
+            <div style={{textAlign:'center'}}>
+                <div style={{fontSize:11,fontWeight:700,color:'#818cf8',letterSpacing:2,marginBottom:4}}>REST</div>
+                <div style={{fontSize:36,fontWeight:800,color:'#fff'}}>{timeLeft}s</div>
+                <div style={{width:'100%',height:3,background:'#333',borderRadius:2,marginTop:8}}>
+                    <div style={{width:pct+'%',height:'100%',background:'#6366f1',borderRadius:2,transition:'width 1s linear'}}/>
+                </div>
+            </div>
+        </div>
+    );
+}
 
-            return (
-                <div className="fixed bottom-24 right-4 bg-blue-500 text-white px-6 py-4 rounded-2xl shadow-2xl z-50">
-                    <div className="text-center">
-                        <div className="text-sm font-bold">SET TIMER</div>
-                        <div className="text-4xl font-bold mb-2">{formatTime(seconds)}</div>
-                        <div className="flex gap-2">
-                            {!isRunning ? (
-                                <button 
-                                    onClick={() => setIsRunning(true)}
-                                    className="bg-white text-blue-500 px-4 py-2 rounded-lg font-bold text-sm">
-                                    Start
-                                </button>
-                            ) : (
-                                <button 
-                                    onClick={() => setIsRunning(false)}
-                                    className="bg-white text-blue-500 px-4 py-2 rounded-lg font-bold text-sm">
-                                    Pause
-                                </button>
-                            )}
-                            <button 
-                                onClick={() => {
-                                    setSeconds(0);
-                                    setIsRunning(false);
-                                }}
-                                className="bg-white text-blue-500 px-4 py-2 rounded-lg font-bold text-sm">
-                                Reset
-                            </button>
-                            <button 
-                                onClick={onCancel}
-                                className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm">
-                                ✕
-                            </button>
+function WorkoutTimer({ startTime }) {
+    const [elapsed, setElapsed] = useState(0);
+    useEffect(() => {
+        if (!startTime) return;
+        const iv = setInterval(()=>setElapsed(Math.floor((Date.now()-startTime)/1000)),1000);
+        return ()=>clearInterval(iv);
+    }, [startTime]);
+    if (!startTime) return null;
+    const m=Math.floor(elapsed/60), s=elapsed%60;
+    return (
+        <div style={{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',borderRadius:12,padding:'10px 16px',textAlign:'center'}}>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:2,opacity:0.8}}>WORKOUT TIME</div>
+            <div style={{fontSize:28,fontWeight:800}}>{m}:{s.toString().padStart(2,'0')}</div>
+        </div>
+    );
+}
+
+function SetTimerWidget({ onClose }) {
+    const [targetMinutes, setTargetMinutes] = useState(1);
+    const [targetSeconds, setTargetSeconds] = useState(0);
+    const [timeLeft, setTimeLeft] = useState(null);
+    const [isRunning, setIsRunning] = useState(false);
+
+    useEffect(() => {
+        if (!isRunning || timeLeft === null || timeLeft <= 0) {
+            if (timeLeft === 0) { setIsRunning(false); }
+            return;
+        }
+        const t = setTimeout(()=>setTimeLeft(tl=>tl-1),1000);
+        return ()=>clearTimeout(t);
+    }, [isRunning, timeLeft]);
+
+    const startTimer = () => {
+        const total = targetMinutes*60 + targetSeconds;
+        if (total > 0) { setTimeLeft(total); setIsRunning(true); }
+    };
+
+    const displayTime = timeLeft !== null ? timeLeft : targetMinutes*60+targetSeconds;
+    const dm = Math.floor(displayTime/60), ds = displayTime%60;
+
+    return (
+        <div style={{position:'fixed',bottom:80,right:16,zIndex:1001,background:'#1a1a2e',border:'2px solid #3b82f6',borderRadius:20,padding:20,boxShadow:'0 8px 32px rgba(59,130,246,0.3)',minWidth:220}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                <span style={{fontSize:11,fontWeight:700,color:'#60a5fa',letterSpacing:2}}>SET TIMER</span>
+                <button onClick={onClose} style={{background:'none',color:'#666',fontSize:20,minHeight:'auto',padding:4}}>✕</button>
+            </div>
+            {timeLeft === null ? (
+                <div>
+                    <div style={{display:'flex',gap:8,alignItems:'center',justifyContent:'center',marginBottom:16}}>
+                        <div>
+                            <div style={{fontSize:10,color:'#888',textAlign:'center',marginBottom:4}}>MIN</div>
+                            <select value={targetMinutes} onChange={e=>setTargetMinutes(+e.target.value)} style={{background:'#111',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',fontSize:20,fontWeight:700,width:60,textAlign:'center'}}>
+                                {[0,1,2,3,4,5].map(n=><option key={n} value={n}>{n}</option>)}
+                            </select>
+                        </div>
+                        <span style={{fontSize:24,fontWeight:700,color:'#fff',marginTop:16}}>:</span>
+                        <div>
+                            <div style={{fontSize:10,color:'#888',textAlign:'center',marginBottom:4}}>SEC</div>
+                            <select value={targetSeconds} onChange={e=>setTargetSeconds(+e.target.value)} style={{background:'#111',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',fontSize:20,fontWeight:700,width:60,textAlign:'center'}}>
+                                {[0,10,15,20,30,45].map(n=><option key={n} value={n}>{n.toString().padStart(2,'0')}</option>)}
+                            </select>
                         </div>
                     </div>
+                    <button onClick={startTimer} style={{width:'100%',background:'#3b82f6',color:'#fff',borderRadius:10,padding:'10px',fontWeight:700,fontSize:14}}>Start</button>
                 </div>
-            );
-        }
+            ) : (
+                <div style={{textAlign:'center'}}>
+                    <div style={{fontSize:48,fontWeight:800,color: timeLeft===0?'#ef4444':'#fff',marginBottom:12}}>{dm}:{ds.toString().padStart(2,'0')}</div>
+                    {timeLeft === 0 && <div style={{color:'#ef4444',fontWeight:700,marginBottom:12,fontSize:16}}>TIME!</div>}
+                    <div style={{display:'flex',gap:8}}>
+                        {timeLeft > 0 ? (
+                            <button onClick={()=>setIsRunning(!isRunning)} style={{flex:1,background:isRunning?'#f59e0b':'#22c55e',color:'#fff',borderRadius:10,padding:'10px',fontWeight:700,fontSize:13}}>
+                                {isRunning?'Pause':'Resume'}
+                            </button>
+                        ) : null}
+                        <button onClick={()=>{setTimeLeft(null);setIsRunning(false);}} style={{flex:1,background:'#374151',color:'#fff',borderRadius:10,padding:'10px',fontWeight:700,fontSize:13}}>Reset</button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
-        function WorkoutHistory({ workouts, onDelete, onEdit, onClose }) {
-            const [editingWorkout, setEditingWorkout] = useState(null);
-            const [editData, setEditData] = useState(null);
+function ExerciseDetailModal({ exerciseName, previousData, onClose }) {
+    const data = exercises[exerciseName];
+    if (!data) return (
+        <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}}>
+            <div onClick={e=>e.stopPropagation()} style={{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%'}}>
+                <h2 style={{fontSize:20,fontWeight:800,marginBottom:8}}>{exerciseName}</h2>
+                <p style={{color:'#888'}}>No additional info available for this exercise.</p>
+                <button onClick={onClose} style={{width:'100%',background:'#6366f1',color:'#fff',borderRadius:12,padding:'14px',fontWeight:700,marginTop:16}}>Got it</button>
+            </div>
+        </div>
+    );
+    return (
+        <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}}>
+            <div onClick={e=>e.stopPropagation()} style={{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'90vh',overflowY:'auto'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:16}}>
+                    <h2 style={{fontSize:20,fontWeight:800,color:'#e8e8e8'}}>{exerciseName}</h2>
+                    <button onClick={onClose} style={{background:'none',color:'#666',fontSize:24,minHeight:'auto'}}>✕</button>
+                </div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:16}}>
+                    {data.muscleGroups.map(g=><span key={g} style={{background:'#6366f1',color:'#fff',padding:'4px 10px',borderRadius:20,fontSize:11,fontWeight:600}}>{g}</span>)}
+                </div>
+                <p style={{color:'#ccc',marginBottom:16,lineHeight:1.6}}>{data.description}</p>
+                {previousData && previousData.length>0 && (
+                    <div style={{background:'#111',borderRadius:12,padding:12,marginBottom:16}}>
+                        <div style={{fontSize:11,fontWeight:700,color:'#60a5fa',letterSpacing:1,marginBottom:8}}>LAST TIME</div>
+                        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                            {previousData.filter(s=>s.weight&&s.reps).map((s,i)=><span key={i} style={{background:'#1e1e3a',padding:'4px 10px',borderRadius:8,fontSize:13,fontWeight:600}}>{s.weight}lbs × {s.reps}</span>)}
+                        </div>
+                    </div>
+                )}
+                <div style={{marginBottom:16}}>
+                    <div style={{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}}>FORM CUES</div>
+                    {data.formCues.map((c,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                        <span style={{color:'#22c55e',fontSize:14}}>✓</span>
+                        <span style={{color:'#ccc',fontSize:14}}>{c}</span>
+                    </div>)}
+                </div>
+                {data.equipment.length>0 && (
+                    <div style={{marginBottom:16}}>
+                        <div style={{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}}>EQUIPMENT</div>
+                        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                            {data.equipment.map(eq=><span key={eq} style={{background:'#1e1e3a',color:'#818cf8',padding:'4px 10px',borderRadius:20,fontSize:12,fontWeight:600}}>{eq}</span>)}
+                        </div>
+                    </div>
+                )}
+                <button onClick={onClose} style={{width:'100%',background:'#6366f1',color:'#fff',borderRadius:12,padding:'14px',fontWeight:700,fontSize:15}}>Got it</button>
+            </div>
+        </div>
+    );
+}
 
-            const startEdit = (workout, idx) => {
-                setEditingWorkout(idx);
-                setEditData(JSON.parse(JSON.stringify(workout))); // Deep clone
-            };
+function CardioFinisherSection({ finisher, selected, onSelect, onLog }) {
+    return (
+        <div style={{background:'#111',borderRadius:16,padding:20,marginBottom:16,border:'1px solid #222'}}>
+            <div style={{fontSize:12,fontWeight:700,color:'#f59e0b',letterSpacing:2,marginBottom:12}}>🔥 {finisher.title.toUpperCase()}</div>
+            <div style={{fontSize:13,color:'#888',marginBottom:12}}>Pick one to finish strong:</div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {finisher.options.map((opt,i) => (
+                    <button key={i} onClick={()=>onSelect(i)}
+                        style={{
+                            background: selected===i ? 'rgba(245,158,11,0.15)' : '#1a1a2e',
+                            border: selected===i ? '2px solid #f59e0b' : '2px solid #222',
+                            borderRadius:12, padding:'12px 16px', textAlign:'left', transition:'all 0.2s',
+                        }}>
+                        <div style={{fontWeight:700,fontSize:14,color: selected===i ? '#f59e0b' : '#e8e8e8',marginBottom:4}}>{opt.name}</div>
+                        <div style={{fontSize:12,color:'#888'}}>{opt.description}</div>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
 
-            const saveEdit = () => {
-                onEdit(editingWorkout, editData);
-                setEditingWorkout(null);
-                setEditData(null);
-            };
+function WorkoutHistory({ workouts, onDelete, onEdit, onClose }) {
+    const [editIdx, setEditIdx] = useState(null);
+    const [editData, setEditData] = useState(null);
 
-            const updateEditSet = (exIdx, setIdx, field, value) => {
-                setEditData(prev => {
-                    const updated = JSON.parse(JSON.stringify(prev));
-                    updated.exercises[exIdx].sets[setIdx][field] = value;
-                    return updated;
-                });
-            };
+    const startEdit = (w,i) => { setEditIdx(i); setEditData(JSON.parse(JSON.stringify(w))); };
+    const saveEdit = () => { onEdit(editIdx, editData); setEditIdx(null); setEditData(null); };
+    const updateEditSet = (ei,si,field,val) => {
+        setEditData(p => { const u=JSON.parse(JSON.stringify(p)); u.exercises[ei].sets[si][field]=val; return u; });
+    };
 
-            if (editingWorkout !== null && editData) {
-                return (
-                    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-2xl font-bold">Edit Workout</h2>
-                                <button onClick={() => setEditingWorkout(null)} className="text-4xl">&times;</button>
-                            </div>
+    if (editIdx!==null && editData) {
+        return (
+            <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}}>
+                <div style={{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:600,width:'100%',maxHeight:'90vh',overflowY:'auto'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+                        <h2 style={{fontSize:20,fontWeight:800}}>Edit Workout</h2>
+                        <button onClick={()=>setEditIdx(null)} style={{background:'none',color:'#666',fontSize:24,minHeight:'auto'}}>✕</button>
+                    </div>
+                    <div style={{fontWeight:700,fontSize:16,marginBottom:4}}>{editData.name}</div>
+                    <div style={{fontSize:13,color:'#888',marginBottom:16}}>{new Date(editData.date).toLocaleDateString()}</div>
+                    <div style={{marginBottom:16}}>
+                        <div style={{fontSize:12,fontWeight:600,color:'#888',marginBottom:4}}>Notes</div>
+                        <textarea value={editData.notes||''} onChange={e=>setEditData({...editData,notes:e.target.value})} style={{width:'100%',background:'#111',color:'#e8e8e8',border:'1px solid #333',borderRadius:8,padding:10}} rows="2"/>
+                    </div>
+                    {editData.exercises?.map((ex,ei)=>(
+                        <div key={ei} style={{background:'#111',borderRadius:12,padding:12,marginBottom:8}}>
+                            <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>{ex.name}</div>
+                            {ex.sets?.map((s,si)=>(
+                                <div key={si} style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr',gap:8,marginBottom:4,alignItems:'center'}}>
+                                    <span style={{color:'#818cf8',fontWeight:700,fontSize:13}}>S{si+1}</span>
+                                    <input type="number" value={s.weight||''} onChange={e=>updateEditSet(ei,si,'weight',e.target.value)} placeholder="lbs" style={{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:6,padding:'6px 8px',textAlign:'center'}}/>
+                                    <input type="number" value={s.reps||''} onChange={e=>updateEditSet(ei,si,'reps',e.target.value)} placeholder="reps" style={{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:6,padding:'6px 8px',textAlign:'center'}}/>
+                                </div>
+                            ))}
+                        </div>
+                    ))}
+                    <div style={{display:'flex',gap:8,marginTop:16}}>
+                        <button onClick={()=>setEditIdx(null)} style={{flex:1,background:'#374151',color:'#fff',borderRadius:12,padding:'14px',fontWeight:700}}>Cancel</button>
+                        <button onClick={saveEdit} style={{flex:1,background:'#22c55e',color:'#fff',borderRadius:12,padding:'14px',fontWeight:700}}>Save</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
-                            <div className="mb-4">
-                                <div className="font-bold text-lg">{editData.name}</div>
-                                <div className="text-sm text-gray-600">
-                                    {new Date(editData.date).toLocaleDateString()}
+    return (
+        <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}}>
+            <div onClick={e=>e.stopPropagation()} style={{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:600,width:'100%',maxHeight:'90vh',overflowY:'auto'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+                    <h2 style={{fontSize:22,fontWeight:800}}>Workout History</h2>
+                    <button onClick={onClose} style={{background:'none',color:'#666',fontSize:24,minHeight:'auto'}}>✕</button>
+                </div>
+                {workouts.length===0 ? <p style={{textAlign:'center',color:'#666',padding:'40px 0'}}>No workouts yet!</p> :
+                    workouts.map((w,i)=>(
+                        <div key={i} style={{background:'#111',borderRadius:12,padding:16,marginBottom:8,border:'1px solid #1e1e1e'}}>
+                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:8}}>
+                                <div>
+                                    <div style={{fontWeight:700,fontSize:15}}>{w.name}</div>
+                                    <div style={{fontSize:12,color:'#888',marginTop:2}}>{new Date(w.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</div>
+                                    {w.duration!=null && <div style={{fontSize:12,color:'#6366f1',marginTop:2}}>{w.duration} min</div>}
+                                </div>
+                                <div style={{display:'flex',gap:6}}>
+                                    <button onClick={()=>startEdit(w,i)} style={{background:'#1e1e3a',color:'#60a5fa',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:700}}>Edit</button>
+                                    <button onClick={()=>{if(confirm('Delete?')){onDelete(i)}}} style={{background:'#1e1e1e',color:'#ef4444',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:700}}>Del</button>
                                 </div>
                             </div>
-
-                            <div className="mb-4">
-                                <label className="block text-sm font-bold mb-2">Notes</label>
-                                <textarea 
-                                    value={editData.notes || ''}
-                                    onChange={(e) => setEditData({...editData, notes: e.target.value})}
-                                    className="w-full border-2 rounded p-2"
-                                    rows="2"
-                                />
-                            </div>
-
-                            <div className="space-y-4 mb-4">
-                                {editData.exercises?.map((ex, exIdx) => (
-                                    <div key={exIdx} className="border rounded-lg p-4">
-                                        <div className="font-bold mb-3">{ex.name}</div>
-                                        <div className="space-y-2">
-                                            {ex.sets?.map((set, setIdx) => (
-                                                <div key={setIdx} className="grid grid-cols-3 gap-2">
-                                                    <span className="font-bold text-purple-600 flex items-center">
-                                                        Set {setIdx + 1}
-                                                    </span>
-                                                    <input 
-                                                        type="number" 
-                                                        value={set.weight || ''}
-                                                        onChange={(e) => updateEditSet(exIdx, setIdx, 'weight', e.target.value)}
-                                                        placeholder="lbs"
-                                                        className="border-2 rounded px-2 py-2 text-center"
-                                                    />
-                                                    <input 
-                                                        type="number" 
-                                                        value={set.reps || ''}
-                                                        onChange={(e) => updateEditSet(exIdx, setIdx, 'reps', e.target.value)}
-                                                        placeholder="reps"
-                                                        className="border-2 rounded px-2 py-2 text-center"
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="flex gap-2">
-                                <button 
-                                    onClick={() => setEditingWorkout(null)}
-                                    className="flex-1 bg-gray-300 text-gray-800 font-bold py-3 rounded-xl">
-                                    Cancel
-                                </button>
-                                <button 
-                                    onClick={saveEdit}
-                                    className="flex-1 bg-green-500 text-white font-bold py-3 rounded-xl">
-                                    Save Changes
-                                </button>
-                            </div>
+                            {w.exercises && w.exercises.map((ex,ei)=>(
+                                <div key={ei} style={{fontSize:13,marginBottom:4}}>
+                                    <span style={{fontWeight:600}}>{ex.name}: </span>
+                                    <span style={{color:'#888'}}>{ex.sets.filter(s=>s.weight&&s.reps).map(s=>`${s.weight}×${s.reps}`).join(', ')}</span>
+                                </div>
+                            ))}
+                            {w.cardioFinisher && <div style={{fontSize:12,color:'#f59e0b',marginTop:4}}>🔥 {w.cardioFinisher}</div>}
+                            {w.notes && <div style={{fontSize:12,color:'#888',fontStyle:'italic',marginTop:4}}>{w.notes}</div>}
                         </div>
-                    </div>
-                );
+                    ))
+                }
+            </div>
+        </div>
+    );
+}
+
+function PRBanner({ message }) {
+    return <div className="pr-banner">🏆 NEW PR! {message}</div>;
+}
+
+// ─── Main App ───
+function App() {
+    const [currentDay, setCurrentDay] = useState(null);
+    const [selectedVariation, setSelectedVariation] = useState(0);
+    const [userEquipment, setUserEquipment] = useState([]);
+    const [showEquipment, setShowEquipment] = useState(false);
+    const [workoutHistory, setWorkoutHistory] = useState([]);
+    const [showHistory, setShowHistory] = useState(false);
+    const [currentWorkout, setCurrentWorkout] = useState(null);
+    const [selectedExercise, setSelectedExercise] = useState(null);
+    const [restTimer, setRestTimer] = useState(null);
+    const [workoutNotes, setWorkoutNotes] = useState('');
+    const [startTime, setStartTime] = useState(null);
+    const [workoutStarted, setWorkoutStarted] = useState(false);
+    const [showSetTimer, setShowSetTimer] = useState(false);
+    const [swappedExercises, setSwappedExercises] = useState({});
+    const [selectedCardio, setSelectedCardio] = useState(null);
+    const [prMessages, setPrMessages] = useState([]);
+
+    useEffect(() => {
+        const eq = storage.get('equipment');
+        const hist = storage.get('workoutHistory');
+        if (eq) setUserEquipment(eq);
+        if (hist) setWorkoutHistory(hist);
+    }, []);
+
+    const saveEquipment = () => {
+        storage.set('equipment', userEquipment);
+        setShowEquipment(false);
+    };
+
+    const toggleEquipment = (item) => {
+        setUserEquipment(prev=>prev.includes(item)?prev.filter(e=>e!==item):[...prev,item]);
+    };
+
+    const selectDay = (dayKey) => {
+        setCurrentDay(dayKey);
+        setSelectedVariation(0);
+        setWorkoutStarted(false);
+        setStartTime(null);
+        setSwappedExercises({});
+        setSelectedCardio(null);
+        setWorkoutNotes('');
+        initWorkout(dayKey, 0);
+    };
+
+    const initWorkout = (dayKey, varIdx) => {
+        const prog = workoutPrograms[dayKey];
+        const exs = prog.variations[varIdx].map(ex => ({
+            ...ex,
+            sets: Array(ex.sets).fill(null).map(()=>({weight:'',reps:'',completed:false}))
+        }));
+        setCurrentWorkout({ exercises: exs });
+    };
+
+    const changeVariation = (varIdx) => {
+        setSelectedVariation(varIdx);
+        setSwappedExercises({});
+        initWorkout(currentDay, varIdx);
+    };
+
+    const startWorkoutTimer = () => {
+        setWorkoutStarted(true);
+        setStartTime(Date.now());
+    };
+
+    const updateSet = (ei,si,field,val) => {
+        setCurrentWorkout(prev => {
+            const u = JSON.parse(JSON.stringify(prev));
+            u.exercises[ei].sets[si][field] = val;
+            return u;
+        });
+    };
+
+    const toggleSetComplete = (ei,si,restTime) => {
+        setCurrentWorkout(prev => {
+            const u = JSON.parse(JSON.stringify(prev));
+            u.exercises[ei].sets[si].completed = !u.exercises[ei].sets[si].completed;
+            if (u.exercises[ei].sets[si].completed && restTime) setRestTimer(restTime);
+            return u;
+        });
+    };
+
+    const checkEquipment = (name) => {
+        const d = exercises[name];
+        if (!d || !d.equipment || d.equipment.length===0) return {hasEquipment:true,missing:[]};
+        const missing = d.equipment.filter(eq=>!userEquipment.includes(eq));
+        return {hasEquipment:missing.length===0, missing};
+    };
+
+    const swapExercise = (originalName, exIdx) => {
+        const orig = exercises[originalName];
+        if (!orig?.substitutes?.length) return;
+        const currentSwapName = swappedExercises[exIdx] || originalName;
+        const allOpts = [originalName, ...orig.substitutes];
+        const curI = allOpts.indexOf(currentSwapName);
+        const nextI = (curI+1) % allOpts.length;
+        const nextName = allOpts[nextI];
+        setSwappedExercises(prev=>({...prev,[exIdx]:nextName}));
+        setCurrentWorkout(prev => {
+            const u = JSON.parse(JSON.stringify(prev));
+            const origEx = workoutPrograms[currentDay].variations[selectedVariation][exIdx];
+            u.exercises[exIdx] = { name:nextName, sets:Array(origEx.sets).fill(null).map(()=>({weight:'',reps:'',completed:false})), reps:origEx.reps, rest:origEx.rest };
+            return u;
+        });
+    };
+
+    const getPreviousExerciseData = (name) => {
+        for (let w of workoutHistory) {
+            const ex = w.exercises?.find(e=>e.name===name);
+            if (ex && ex.sets) return ex.sets;
+        }
+        return null;
+    };
+
+    const getExerciseBestVolume = (name) => {
+        let best = 0;
+        for (let w of workoutHistory) {
+            const ex = w.exercises?.find(e=>e.name===name);
+            if (ex && ex.sets) {
+                const vol = ex.sets.reduce((sum,s) => sum + (parseFloat(s.weight)||0)*(parseInt(s.reps)||0), 0);
+                if (vol > best) best = vol;
             }
+        }
+        return best;
+    };
 
-            return (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50" onClick={onClose}>
-                    <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold">Workout History</h2>
-                            <button onClick={onClose} className="text-4xl">&times;</button>
-                        </div>
-                        
-                        {workouts.length === 0 ? (
-                            <p className="text-center text-gray-500 py-8">No workouts yet. Complete your first workout!</p>
-                        ) : (
-                            <div className="space-y-3">
-                                {workouts.map((workout, idx) => (
-                                    <div key={idx} className="border rounded-lg p-4">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <div className="font-bold text-lg">{workout.name}</div>
-                                                <div className="text-sm text-gray-600">
-                                                    {new Date(workout.date).toLocaleDateString('en-US', { 
-                                                        weekday: 'short', 
-                                                        month: 'short', 
-                                                        day: 'numeric',
-                                                        year: 'numeric'
-                                                    })}
-                                                </div>
-                                                {workout.duration && (
-                                                    <div className="text-sm text-gray-600">Duration: {workout.duration} min</div>
-                                                )}
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button 
-                                                    onClick={() => startEdit(workout, idx)}
-                                                    className="text-blue-500 px-3 py-1 rounded hover:bg-blue-50 text-sm font-bold">
-                                                    Edit
-                                                </button>
-                                                <button 
-                                                    onClick={() => onDelete(idx)}
-                                                    className="text-red-500 px-3 py-1 rounded hover:bg-red-50 text-sm font-bold">
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </div>
-                                        
-                                        {workout.exercises && (
-                                            <div className="mt-3 space-y-2">
-                                                {workout.exercises.map((ex, exIdx) => (
-                                                    <div key={exIdx} className="text-sm bg-gray-50 p-2 rounded">
-                                                        <div className="font-semibold">{ex.name}</div>
-                                                        <div className="text-gray-600 flex gap-4 flex-wrap">
-                                                            {ex.sets.map((set, setIdx) => (
-                                                                set.weight && set.reps && (
-                                                                    <span key={setIdx}>
-                                                                        {set.weight}lbs × {set.reps}
-                                                                    </span>
-                                                                )
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                        
-                                        {workout.notes && (
-                                            <div className="mt-2 text-sm text-gray-600 italic">
-                                                Note: {workout.notes}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
+    const getExerciseBestWeight = (name) => {
+        let best = 0;
+        for (let w of workoutHistory) {
+            const ex = w.exercises?.find(e=>e.name===name);
+            if (ex && ex.sets) {
+                for (let s of ex.sets) {
+                    const wt = parseFloat(s.weight)||0;
+                    if (wt > best) best = wt;
+                }
+            }
+        }
+        return best;
+    };
+
+    const completeWorkout = () => {
+        if (!currentWorkout || !currentDay) return;
+        const duration = startTime ? Math.round((Date.now()-startTime)/60000) : null;
+        const prog = workoutPrograms[currentDay];
+
+        // Check for PRs
+        const newPRs = [];
+        for (let ex of currentWorkout.exercises) {
+            const prevBestVol = getExerciseBestVolume(ex.name);
+            const prevBestWt = getExerciseBestWeight(ex.name);
+            const curVol = ex.sets.reduce((sum,s)=>sum+(parseFloat(s.weight)||0)*(parseInt(s.reps)||0),0);
+            const curBestWt = Math.max(...ex.sets.map(s=>parseFloat(s.weight)||0));
+            if (curVol > prevBestVol && prevBestVol > 0) newPRs.push(`${ex.name} — new volume record!`);
+            else if (curBestWt > prevBestWt && prevBestWt > 0) newPRs.push(`${ex.name} — new weight PR: ${curBestWt}lbs!`);
         }
 
-        function ExerciseDetailModal({ exercise, previousData, onClose }) {
-            const exerciseData = exercises[exercise.name];
-            if (!exerciseData) return null;
+        const workout = {
+            date: new Date().toISOString(),
+            name: prog.name + ` (V${selectedVariation+1})`,
+            exercises: currentWorkout.exercises.map(ex=>({name:ex.name, sets:ex.sets})),
+            duration,
+            notes: workoutNotes,
+            cardioFinisher: selectedCardio !== null ? prog.cardioFinisher.options[selectedCardio].name : null,
+        };
 
-            return (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50" onClick={onClose}>
-                    <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-start mb-4">
-                            <h2 className="text-2xl font-bold text-purple-800">{exercise.name}</h2>
-                            <button onClick={onClose} className="text-4xl">&times;</button>
+        const newHistory = [workout, ...workoutHistory];
+        setWorkoutHistory(newHistory);
+        storage.set('workoutHistory', newHistory);
+
+        if (newPRs.length > 0) {
+            setPrMessages(newPRs);
+            setTimeout(()=>setPrMessages([]), 4500);
+        }
+
+        setCurrentDay(null);
+        setCurrentWorkout(null);
+        setWorkoutNotes('');
+        setStartTime(null);
+        setWorkoutStarted(false);
+        setSwappedExercises({});
+        setSelectedCardio(null);
+    };
+
+    const deleteWorkout = (idx) => {
+        const nh = workoutHistory.filter((_,i)=>i!==idx);
+        setWorkoutHistory(nh);
+        storage.set('workoutHistory',nh);
+    };
+    const editWorkout = (idx,data) => {
+        const nh=[...workoutHistory]; nh[idx]=data;
+        setWorkoutHistory(nh);
+        storage.set('workoutHistory',nh);
+    };
+
+    // ─── MAIN MENU ───
+    if (!currentDay) {
+        return (
+            <div style={{minHeight:'100vh',background:'#0a0a0a',padding:16}}>
+                <div style={{maxWidth:600,margin:'0 auto'}}>
+                    {prMessages.map((msg,i) => <PRBanner key={i} message={msg}/>)}
+
+                    <div style={{textAlign:'center',padding:'32px 0 24px'}}>
+                        <h1 style={{fontSize:28,fontWeight:800,letterSpacing:'-0.5px'}}>Workout Tracker</h1>
+                        <p style={{color:'#666',fontSize:13,marginTop:4}}>Train hard. Track everything.</p>
+                    </div>
+
+                    <div style={{display:'flex',gap:8,marginBottom:20}}>
+                        <button onClick={()=>setShowEquipment(true)} style={{flex:1,background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:'14px',fontWeight:700,fontSize:14}}>⚙️ Equipment</button>
+                        <button onClick={()=>setShowHistory(true)} style={{flex:1,background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:'14px',fontWeight:700,fontSize:14}}>📊 History</button>
+                    </div>
+
+                    {/* Quick Stats */}
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:24}}>
+                        <div style={{background:'linear-gradient(135deg,#6366f1,#4f46e5)',borderRadius:14,padding:16,textAlign:'center'}}>
+                            <div style={{fontSize:28,fontWeight:800}}>{workoutHistory.length}</div>
+                            <div style={{fontSize:11,opacity:0.8,fontWeight:600}}>Total</div>
                         </div>
-
-                        <div className="mb-4 p-6 bg-gradient-to-br from-purple-100 to-blue-100 rounded-xl">
-                            <div className="text-6xl text-center mb-2">💪</div>
-                            <div className="text-center text-sm text-gray-600">
-                                {exerciseData.muscleGroups.join(' • ')}
-                            </div>
+                        <div style={{background:'linear-gradient(135deg,#8b5cf6,#7c3aed)',borderRadius:14,padding:16,textAlign:'center'}}>
+                            <div style={{fontSize:28,fontWeight:800}}>{workoutHistory.filter(w=>{const d=new Date();d.setDate(d.getDate()-7);return new Date(w.date)>d}).length}</div>
+                            <div style={{fontSize:11,opacity:0.8,fontWeight:600}}>This Week</div>
                         </div>
+                        <div style={{background:'linear-gradient(135deg,#ec4899,#db2777)',borderRadius:14,padding:16,textAlign:'center'}}>
+                            <div style={{fontSize:28,fontWeight:800}}>{userEquipment.length}</div>
+                            <div style={{fontSize:11,opacity:0.8,fontWeight:600}}>Equipment</div>
+                        </div>
+                    </div>
 
-                        {previousData && previousData.length > 0 && (
-                            <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-                                <div className="font-bold text-blue-900 mb-2">📊 Last Time:</div>
-                                <div className="flex gap-3 flex-wrap">
-                                    {previousData.map((set, idx) => (
-                                        set.weight && set.reps && (
-                                            <span key={idx} className="bg-white px-3 py-1 rounded">
-                                                {set.weight}lbs × {set.reps}
-                                            </span>
-                                        )
+                    {/* Workout Days */}
+                    <div style={{marginBottom:24}}>
+                        <h2 style={{fontSize:16,fontWeight:700,marginBottom:12,color:'#888'}}>START WORKOUT</h2>
+                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                            {Object.entries(workoutPrograms).map(([key,prog])=>(
+                                <button key={key} onClick={()=>selectDay(key)}
+                                    style={{
+                                        background:'#111',border:'1px solid #222',borderRadius:16,padding:'20px 16px',
+                                        textAlign:'left',transition:'all 0.2s',
+                                        gridColumn: key==='extra'?'1/3':undefined,
+                                    }}>
+                                    <div style={{fontSize:24,marginBottom:6}}>{prog.icon}</div>
+                                    <div style={{fontWeight:700,fontSize:15,color:'#e8e8e8'}}>{prog.name}</div>
+                                    <div style={{fontSize:11,color:'#666',marginTop:2}}>{prog.variations.length} variations</div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Equipment Modal */}
+                    {showEquipment && (
+                        <div onClick={()=>setShowEquipment(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}}>
+                            <div onClick={e=>e.stopPropagation()} style={{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'80vh',overflowY:'auto'}}>
+                                <h2 style={{fontSize:20,fontWeight:800,marginBottom:16}}>My Equipment</h2>
+                                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:16}}>
+                                    {allEquipment.map(item=>(
+                                        <label key={item} style={{display:'flex',alignItems:'center',padding:'10px 12px',background:userEquipment.includes(item)?'rgba(99,102,241,0.15)':'#111',border:userEquipment.includes(item)?'1px solid #6366f1':'1px solid #222',borderRadius:10,cursor:'pointer',transition:'all 0.2s'}}>
+                                            <input type="checkbox" checked={userEquipment.includes(item)} onChange={()=>toggleEquipment(item)} style={{marginRight:8}}/>
+                                            <span style={{fontSize:13,fontWeight:500}}>{item}</span>
+                                        </label>
                                     ))}
                                 </div>
+                                <button onClick={saveEquipment} style={{width:'100%',background:'#22c55e',color:'#fff',borderRadius:12,padding:'14px',fontWeight:700,fontSize:15}}>Save Equipment</button>
                             </div>
-                        )}
-
-                        <div className="mb-4">
-                            <h3 className="text-lg font-bold mb-2 text-purple-700">Description</h3>
-                            <p className="text-gray-700">{exerciseData.description}</p>
                         </div>
+                    )}
 
-                        <div className="mb-4">
-                            <h3 className="text-lg font-bold mb-2 text-purple-700">Form Cues</h3>
-                            <ul className="space-y-2">
-                                {exerciseData.formCues.map((cue, i) => (
-                                    <li key={i} className="flex items-start">
-                                        <span className="text-green-500 text-xl mr-2">✓</span>
-                                        <span className="text-gray-700">{cue}</span>
-                                    </li>
-                                ))}
-                            </ul>
+                    {showHistory && <WorkoutHistory workouts={workoutHistory} onDelete={deleteWorkout} onEdit={editWorkout} onClose={()=>setShowHistory(false)}/>}
+                </div>
+            </div>
+        );
+    }
+
+    // ─── WORKOUT IN PROGRESS ───
+    const program = workoutPrograms[currentDay];
+    const variation = program.variations[selectedVariation];
+
+    return (
+        <div style={{minHeight:'100vh',background:'#0a0a0a',padding:16,paddingBottom:100}}>
+            <div style={{maxWidth:600,margin:'0 auto'}}>
+                {prMessages.map((msg,i) => <PRBanner key={i} message={msg}/>)}
+
+                <button onClick={()=>{if(confirm('Exit workout? Progress will be lost.')){setCurrentDay(null);setCurrentWorkout(null);setWorkoutStarted(false);setStartTime(null);}}}
+                    style={{background:'none',color:'#888',fontSize:15,fontWeight:600,marginBottom:12,padding:'8px 0'}}>
+                    ← Back
+                </button>
+
+                {selectedExercise && <ExerciseDetailModal exerciseName={selectedExercise} previousData={getPreviousExerciseData(selectedExercise)} onClose={()=>setSelectedExercise(null)}/>}
+                {restTimer && <RestTimer seconds={restTimer} onComplete={()=>setRestTimer(null)}/>}
+                {showSetTimer && <SetTimerWidget onClose={()=>setShowSetTimer(false)}/>}
+
+                <div style={{background:'#111',borderRadius:20,padding:20,border:'1px solid #1e1e1e'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                        <div>
+                            <h2 style={{fontSize:20,fontWeight:800}}>{program.icon} {program.name}</h2>
                         </div>
-
-                        {exerciseData.equipment.length > 0 && (
-                            <div className="mb-4">
-                                <h3 className="text-lg font-bold mb-2 text-purple-700">Equipment</h3>
-                                <div className="flex gap-2 flex-wrap">
-                                    {exerciseData.equipment.map(eq => (
-                                        <span key={eq} className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm">
-                                            {eq}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        <button 
-                            onClick={onClose}
-                            className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl">
-                            Got it!
+                        <button onClick={()=>setShowSetTimer(!showSetTimer)}
+                            style={{background:'#1e1e3a',color:'#60a5fa',padding:'8px 14px',borderRadius:10,fontWeight:700,fontSize:12}}>
+                            ⏱ Timer
                         </button>
                     </div>
-                </div>
-            );
-        }
 
-        function App() {
-            const [currentDay, setCurrentDay] = useState(null);
-            const [userEquipment, setUserEquipment] = useState([]);
-            const [showEquipmentModal, setShowEquipmentModal] = useState(false);
-            const [workoutHistory, setWorkoutHistory] = useState([]);
-            const [showHistory, setShowHistory] = useState(false);
-            const [currentWorkout, setCurrentWorkout] = useState(null);
-            const [selectedExercise, setSelectedExercise] = useState(null);
-            const [restTimer, setRestTimer] = useState(null);
-            const [workoutNotes, setWorkoutNotes] = useState('');
-            const [startTime, setStartTime] = useState(null);
-            const [showSetTimer, setShowSetTimer] = useState(false);
-            const [swappedExercises, setSwappedExercises] = useState({});
-
-            // Load data on mount
-            useEffect(() => {
-                const equipment = storage.get('equipment');
-                const history = storage.get('workoutHistory');
-                
-                if (equipment) setUserEquipment(equipment);
-                if (history) setWorkoutHistory(history);
-                
-                console.log('Loaded equipment:', equipment);
-                console.log('Loaded history:', history);
-            }, []);
-
-            const saveEquipment = () => {
-                const saved = storage.set('equipment', userEquipment);
-                console.log('Saving equipment:', userEquipment, 'Success:', saved);
-                setShowEquipmentModal(false);
-                if (saved) {
-                    alert('✅ Equipment saved!');
-                }
-            };
-
-            const toggleEquipment = (item) => {
-                setUserEquipment(prev => 
-                    prev.includes(item) ? prev.filter(e => e !== item) : [...prev, item]
-                );
-            };
-
-            const startWorkout = (dayKey) => {
-                setCurrentDay(dayKey);
-                setStartTime(Date.now());
-                const program = workoutPrograms[dayKey];
-                const exercises = program.variations[0].map(ex => ({
-                    ...ex,
-                    sets: Array(ex.sets).fill(null).map(() => ({ weight: '', reps: '', completed: false }))
-                }));
-                setCurrentWorkout({ exercises });
-            };
-
-            const updateSet = (exerciseIdx, setIdx, field, value) => {
-                setCurrentWorkout(prev => {
-                    const updated = { ...prev };
-                    updated.exercises[exerciseIdx].sets[setIdx][field] = value;
-                    return updated;
-                });
-            };
-
-            const toggleSetComplete = (exerciseIdx, setIdx, restTime) => {
-                setCurrentWorkout(prev => {
-                    const updated = { ...prev };
-                    const set = updated.exercises[exerciseIdx].sets[setIdx];
-                    set.completed = !set.completed;
-                    
-                    // Start rest timer if completing the set
-                    if (set.completed && restTime) {
-                        setRestTimer(restTime);
-                    }
-                    
-                    return updated;
-                });
-            };
-
-            const completeWorkout = () => {
-                if (!currentWorkout || !currentDay) return;
-
-                const duration = Math.round((Date.now() - startTime) / 60000); // minutes
-                
-                const workout = {
-                    date: new Date().toISOString(),
-                    name: workoutPrograms[currentDay].name,
-                    exercises: currentWorkout.exercises.map(ex => ({
-                        name: ex.name,
-                        sets: ex.sets
-                    })),
-                    duration,
-                    notes: workoutNotes
-                };
-
-                const newHistory = [workout, ...workoutHistory];
-                setWorkoutHistory(newHistory);
-                const saved = storage.set('workoutHistory', newHistory);
-                
-                console.log('Saving workout:', workout, 'Success:', saved);
-                
-                if (saved) {
-                    alert('🎉 Workout saved!');
-                } else {
-                    alert('⚠️ Could not save workout. Check browser settings.');
-                }
-                
-                setCurrentDay(null);
-                setCurrentWorkout(null);
-                setWorkoutNotes('');
-                setStartTime(null);
-            };
-
-            const deleteWorkout = (idx) => {
-                if (confirm('Delete this workout?')) {
-                    const newHistory = workoutHistory.filter((_, i) => i !== idx);
-                    setWorkoutHistory(newHistory);
-                    storage.set('workoutHistory', newHistory);
-                }
-            };
-
-            const editWorkout = (idx, updatedWorkout) => {
-                const newHistory = [...workoutHistory];
-                newHistory[idx] = updatedWorkout;
-                setWorkoutHistory(newHistory);
-                storage.set('workoutHistory', newHistory);
-            };
-
-            const checkEquipment = (exerciseName) => {
-                const exerciseData = exercises[exerciseName];
-                if (!exerciseData || exerciseData.equipment.length === 0) {
-                    return { hasEquipment: true, missing: [] };
-                }
-                const missing = exerciseData.equipment.filter(eq => !userEquipment.includes(eq));
-                return { hasEquipment: missing.length === 0, missing };
-            };
-
-            const swapExercise = (exerciseName, exerciseIdx) => {
-                const exerciseData = exercises[exerciseName];
-                if (!exerciseData?.substitutes?.length) return;
-                
-                const currentSwap = swappedExercises[exerciseIdx] || exerciseName;
-                const allOptions = [exerciseName, ...exerciseData.substitutes];
-                const currentIndex = allOptions.indexOf(currentSwap);
-                const nextIndex = (currentIndex + 1) % allOptions.length;
-                
-                setSwappedExercises(prev => ({
-                    ...prev,
-                    [exerciseIdx]: allOptions[nextIndex]
-                }));
-
-                // Update the current workout with swapped exercise
-                setCurrentWorkout(prev => {
-                    const updated = { ...prev };
-                    const originalExercise = program.variations[0][exerciseIdx];
-                    updated.exercises[exerciseIdx] = {
-                        name: allOptions[nextIndex],
-                        sets: Array(originalExercise.sets).fill(null).map(() => ({ 
-                            weight: '', 
-                            reps: '', 
-                            completed: false 
-                        }))
-                    };
-                    return updated;
-                });
-            };
-
-            const getPreviousExerciseData = (exerciseName) => {
-                for (let workout of workoutHistory) {
-                    const ex = workout.exercises?.find(e => e.name === exerciseName);
-                    if (ex && ex.sets) return ex.sets;
-                }
-                return null;
-            };
-
-            // Main menu
-            if (!currentDay) {
-                return (
-                    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-purple-900 p-4">
-                        <div className="max-w-2xl mx-auto">
-                            <div className="text-center text-white mb-6">
-                                <h1 className="text-4xl font-bold mb-2">💪 Workout Tracker</h1>
-                                <p className="text-sm opacity-90">Pro Version with History</p>
-                            </div>
-
-                            <div className="flex gap-2 mb-6">
-                                <button 
-                                    onClick={() => setShowEquipmentModal(true)}
-                                    className="flex-1 bg-white text-purple-600 font-bold py-3 rounded-xl">
-                                    ⚙️ Equipment
-                                </button>
-                                <button 
-                                    onClick={() => setShowHistory(true)}
-                                    className="flex-1 bg-white text-purple-600 font-bold py-3 rounded-xl">
-                                    📊 History
-                                </button>
-                            </div>
-
-                            {showEquipmentModal && (
-                                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-                                    <div className="bg-white rounded-2xl p-6 max-w-xl w-full max-h-[80vh] overflow-y-auto">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <h2 className="text-xl font-bold">My Equipment</h2>
-                                            <button onClick={() => setShowEquipmentModal(false)} className="text-4xl">&times;</button>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 mb-4">
-                                            {allEquipment.map(item => (
-                                                <label key={item} className="flex items-center p-3 bg-gray-100 rounded-lg cursor-pointer">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={userEquipment.includes(item)}
-                                                        onChange={() => toggleEquipment(item)}
-                                                        className="w-5 h-5 mr-2"
-                                                    />
-                                                    <span className="text-sm">{item}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                        <button 
-                                            onClick={saveEquipment}
-                                            className="w-full bg-green-500 text-white font-bold py-3 rounded-xl">
-                                            Save Equipment
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {showHistory && (
-                                <WorkoutHistory 
-                                    workouts={workoutHistory}
-                                    onDelete={deleteWorkout}
-                                    onEdit={editWorkout}
-                                    onClose={() => setShowHistory(false)}
-                                />
-                            )}
-
-                            <div className="bg-white rounded-2xl p-6 mb-6">
-                                <h2 className="text-xl font-bold mb-4">Quick Stats</h2>
-                                <div className="grid grid-cols-3 gap-3">
-                                    <div className="bg-gradient-to-br from-purple-600 to-purple-800 text-white p-4 rounded-xl text-center">
-                                        <div className="text-3xl font-bold">{workoutHistory.length}</div>
-                                        <div className="text-xs opacity-90">Total</div>
-                                    </div>
-                                    <div className="bg-gradient-to-br from-purple-600 to-purple-800 text-white p-4 rounded-xl text-center">
-                                        <div className="text-3xl font-bold">
-                                            {workoutHistory.filter(w => {
-                                                const weekAgo = new Date();
-                                                weekAgo.setDate(weekAgo.getDate() - 7);
-                                                return new Date(w.date) > weekAgo;
-                                            }).length}
-                                        </div>
-                                        <div className="text-xs opacity-90">This Week</div>
-                                    </div>
-                                    <div className="bg-gradient-to-br from-purple-600 to-purple-800 text-white p-4 rounded-xl text-center">
-                                        <div className="text-3xl font-bold">
-                                            {userEquipment.length}
-                                        </div>
-                                        <div className="text-xs opacity-90">Equipment</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white rounded-2xl p-6">
-                                <h2 className="text-xl font-bold mb-4">Start Workout</h2>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {Object.keys(workoutPrograms).map(key => (
-                                        <button 
-                                            key={key}
-                                            onClick={() => startWorkout(key)}
-                                            className={`bg-gradient-to-r from-purple-600 to-purple-800 text-white font-bold py-6 rounded-xl active:scale-95 transition ${
-                                                key === 'extra' ? 'col-span-2' : ''
-                                            }`}>
-                                            {workoutPrograms[key].name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
-
-            // Workout in progress
-            const program = workoutPrograms[currentDay];
-            
-            return (
-                <div className="min-h-screen bg-gradient-to-br from-purple-600 to-purple-900 p-4 pb-24">
-                    <div className="max-w-2xl mx-auto">
-                        <button 
-                            onClick={() => {
-                                if (confirm('Exit workout? Progress will be lost.')) {
-                                    setCurrentDay(null);
-                                    setCurrentWorkout(null);
-                                }
-                            }}
-                            className="text-white mb-4 text-lg">
-                            ← Exit Workout
-                        </button>
-
-                        {selectedExercise && (
-                            <ExerciseDetailModal 
-                                exercise={selectedExercise}
-                                previousData={getPreviousExerciseData(selectedExercise.name)}
-                                onClose={() => setSelectedExercise(null)}
-                            />
-                        )}
-
-                        {restTimer && (
-                            <RestTimer 
-                                seconds={restTimer}
-                                onComplete={() => setRestTimer(null)}
-                            />
-                        )}
-
-                        {showSetTimer && (
-                            <SetTimer 
-                                onComplete={() => setShowSetTimer(false)}
-                                onCancel={() => setShowSetTimer(false)}
-                            />
-                        )}
-
-                        <div className="bg-white rounded-2xl p-6">
-                            <div className="flex justify-between items-center mb-2">
-                                <h2 className="text-2xl font-bold">{program.name}</h2>
-                                <button 
-                                    onClick={() => setShowSetTimer(!showSetTimer)}
-                                    className="bg-blue-500 text-white px-4 py-2 rounded-lg font-bold text-sm">
-                                    ⏱️ Timer
-                                </button>
-                            </div>
-                            <div className="mb-6">
-                                <WorkoutTimer startTime={startTime} />
-                            </div>
-
-                            {currentWorkout.exercises.map((exercise, exIdx) => {
-                                const exerciseInfo = program.variations[0][exIdx];
-                                const displayName = swappedExercises[exIdx] || exercise.name;
-                                const previousData = getPreviousExerciseData(displayName);
-                                const equipCheck = checkEquipment(displayName);
-                                
-                                return (
-                                    <div key={exIdx} className="bg-gray-50 rounded-xl p-5 mb-4">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className="flex-1">
-                                                <h3 className="text-lg font-bold">{displayName}</h3>
-                                                {!equipCheck.hasEquipment && (
-                                                    <div className="text-xs text-orange-600 mt-1">
-                                                        ⚠️ Missing: {equipCheck.missing.join(', ')}
-                                                    </div>
-                                                )}
-                                                {previousData && (
-                                                    <div className="text-xs text-blue-600 mt-1">
-                                                        Last: {previousData.filter(s => s.weight && s.reps).map(s => `${s.weight}×${s.reps}`).join(', ')}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="flex gap-2 ml-2">
-                                                {!equipCheck.hasEquipment && (
-                                                    <button
-                                                        onClick={() => swapExercise(exercise.name, exIdx)}
-                                                        className="bg-orange-500 text-white px-3 py-2 rounded text-xs font-bold">
-                                                        Swap
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() => setSelectedExercise({...exerciseInfo, name: displayName})}
-                                                    className="bg-blue-500 text-white px-3 py-2 rounded text-xs font-bold">
-                                                    Info
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-3 mb-4 text-xs flex-wrap">
-                                            <span className="bg-white px-3 py-1 rounded">Sets: {exerciseInfo.sets}</span>
-                                            <span className="bg-white px-3 py-1 rounded">Reps: {exerciseInfo.reps}</span>
-                                            <span className="bg-white px-3 py-1 rounded">Rest: {exerciseInfo.rest}s</span>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            {exercise.sets.map((set, setIdx) => (
-                                                <div key={setIdx} className="grid grid-cols-4 gap-2">
-                                                    <span className="font-bold text-purple-600 flex items-center text-sm">
-                                                        {setIdx + 1}
-                                                    </span>
-                                                    <input 
-                                                        type="number" 
-                                                        placeholder="lbs"
-                                                        value={set.weight}
-                                                        onChange={(e) => updateSet(exIdx, setIdx, 'weight', e.target.value)}
-                                                        className="border-2 rounded px-2 py-2 text-center" 
-                                                    />
-                                                    <input 
-                                                        type="number" 
-                                                        placeholder="reps"
-                                                        value={set.reps}
-                                                        onChange={(e) => updateSet(exIdx, setIdx, 'reps', e.target.value)}
-                                                        className="border-2 rounded px-2 py-2 text-center" 
-                                                    />
-                                                    <button 
-                                                        onClick={() => toggleSetComplete(exIdx, setIdx, exerciseInfo.rest)}
-                                                        className={`rounded font-bold text-lg ${set.completed ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
-                                                        ✓
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-
-                            <div className="mb-4">
-                                <label className="block text-sm font-bold mb-2">Workout Notes</label>
-                                <textarea 
-                                    value={workoutNotes}
-                                    onChange={(e) => setWorkoutNotes(e.target.value)}
-                                    placeholder="How did it feel? Any PRs?"
-                                    className="w-full border-2 rounded-lg p-3"
-                                    rows="3"
-                                />
-                            </div>
-
-                            <button 
-                                onClick={completeWorkout}
-                                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-xl text-lg">
-                                Complete Workout
+                    {/* Variation Selector */}
+                    <div style={{display:'flex',gap:6,marginBottom:16}}>
+                        {program.variations.map((_,vi)=>(
+                            <button key={vi} onClick={()=>changeVariation(vi)}
+                                style={{
+                                    flex:1,
+                                    background:vi===selectedVariation?program.color:'#1a1a2e',
+                                    color:vi===selectedVariation?'#fff':'#888',
+                                    borderRadius:8,padding:'8px',fontWeight:700,fontSize:13,
+                                    border:vi===selectedVariation?'none':'1px solid #333',
+                                }}>
+                                V{vi+1}
                             </button>
-                        </div>
+                        ))}
                     </div>
-                </div>
-            );
-        }
 
-        ReactDOM.render(<App />, document.getElementById('root'));
-    </script>
+                    {/* Start / Timer */}
+                    {!workoutStarted ? (
+                        <button onClick={startWorkoutTimer}
+                            style={{width:'100%',background:'linear-gradient(135deg,#22c55e,#16a34a)',color:'#fff',borderRadius:12,padding:'16px',fontWeight:800,fontSize:16,marginBottom:16}}>
+                            ▶ Start Workout
+                        </button>
+                    ) : (
+                        <div style={{marginBottom:16}}>
+                            <WorkoutTimer startTime={startTime}/>
+                        </div>
+                    )}
+
+                    {/* Exercises */}
+                    {currentWorkout && currentWorkout.exercises.map((exercise, exIdx) => {
+                        const programEx = variation[exIdx];
+                        const displayName = swappedExercises[exIdx] || exercise.name;
+                        const previousData = getPreviousExerciseData(displayName);
+                        const equipCheck = checkEquipment(displayName);
+                        // Use the ORIGINAL exercise name for finding substitutes
+                        const originalName = variation[exIdx].name;
+
+                        return (
+                            <div key={exIdx} style={{background:'#0a0a0a',borderRadius:14,padding:16,marginBottom:10,border:'1px solid #1e1e1e'}} className="slide-up">
+                                <div style={{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:10}}>
+                                    <div style={{flex:1}}>
+                                        <h3 style={{fontSize:15,fontWeight:700}}>{displayName}</h3>
+                                        {!equipCheck.hasEquipment && <div style={{fontSize:11,color:'#f59e0b',marginTop:2}}>⚠️ Missing: {equipCheck.missing.join(', ')}</div>}
+                                        {previousData && <div style={{fontSize:11,color:'#818cf8',marginTop:2}}>Last: {previousData.filter(s=>s.weight&&s.reps).map(s=>`${s.weight}×${s.reps}`).join(', ')}</div>}
+                                    </div>
+                                    <div style={{display:'flex',gap:4,marginLeft:8}}>
+                                        {!equipCheck.hasEquipment && (
+                                            <button onClick={()=>swapExercise(originalName, exIdx)}
+                                                style={{background:'#f59e0b',color:'#000',padding:'6px 10px',borderRadius:8,fontSize:11,fontWeight:700}}>Swap</button>
+                                        )}
+                                        <button onClick={()=>setSelectedExercise(displayName)}
+                                            style={{background:'#1e1e3a',color:'#818cf8',padding:'6px 10px',borderRadius:8,fontSize:11,fontWeight:700}}>Info</button>
+                                    </div>
+                                </div>
+
+                                <div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
+                                    <span style={{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}}>Sets: {programEx.sets}</span>
+                                    <span style={{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}}>Reps: {programEx.reps}</span>
+                                    <span style={{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}}>Rest: {programEx.rest}s</span>
+                                </div>
+
+                                {exercise.sets.map((set, setIdx) => (
+                                    <div key={setIdx} style={{display:'grid',gridTemplateColumns:'30px 1fr 1fr 50px',gap:6,marginBottom:4,alignItems:'center'}}>
+                                        <span style={{color:'#6366f1',fontWeight:800,fontSize:13,textAlign:'center'}}>{setIdx+1}</span>
+                                        <input type="number" placeholder="lbs" value={set.weight}
+                                            onChange={e=>updateSet(exIdx,setIdx,'weight',e.target.value)}
+                                            style={{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'10px 8px',textAlign:'center',fontSize:14}}/>
+                                        <input type="number" placeholder="reps" value={set.reps}
+                                            onChange={e=>updateSet(exIdx,setIdx,'reps',e.target.value)}
+                                            style={{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'10px 8px',textAlign:'center',fontSize:14}}/>
+                                        <button onClick={()=>toggleSetComplete(exIdx,setIdx,programEx.rest)}
+                                            style={{background:set.completed?'#22c55e':'#1a1a2e',color:set.completed?'#fff':'#555',borderRadius:8,fontWeight:800,fontSize:16,border:set.completed?'none':'1px solid #333',padding:'8px'}}>
+                                            ✓
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })}
+
+                    {/* Cardio Finisher */}
+                    <CardioFinisherSection finisher={program.cardioFinisher} selected={selectedCardio} onSelect={setSelectedCardio}/>
+
+                    {/* Notes */}
+                    <div style={{marginBottom:16}}>
+                        <div style={{fontSize:12,fontWeight:600,color:'#888',marginBottom:6}}>Workout Notes</div>
+                        <textarea value={workoutNotes} onChange={e=>setWorkoutNotes(e.target.value)}
+                            placeholder="How did it feel? Any PRs?"
+                            style={{width:'100%',background:'#0a0a0a',color:'#e8e8e8',border:'1px solid #222',borderRadius:10,padding:12,fontSize:14}}
+                            rows="3"/>
+                    </div>
+
+                    <button onClick={completeWorkout}
+                        style={{width:'100%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',borderRadius:14,padding:'16px',fontWeight:800,fontSize:16}}>
+                        Complete Workout
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+ReactDOM.render(<App/>, document.getElementById('root'));
+</script>
 </body>
 </html>
