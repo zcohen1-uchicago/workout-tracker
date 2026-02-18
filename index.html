@@ -14,10 +14,17 @@
         @keyframes prBanner{0%{transform:translateY(-100%);opacity:0}10%{transform:translateY(0);opacity:1}90%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0}}
         .pr-banner{animation:prBanner 4s ease forwards;position:fixed;top:0;left:0;right:0;z-index:9999;padding:16px;text-align:center;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;font-weight:800;font-size:18px}
     </style>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-title" content="Workout">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏋️</text></svg>">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
 </head>
 <body>
 <div id="root"></div>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script>const APP_VERSION="1.0.1771456457";console.log("Workout Tracker v"+APP_VERSION);</script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">
@@ -475,7 +482,7 @@ function App(){
      h('h2',{style:{fontSize:16,fontWeight:700,marginBottom:12,color:'#888'}},'START WORKOUT'),
      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
       Object.entries(WP).map(([k,p])=>h('button',{key:k,onClick:()=>selDay(k),style:{background:'#111',border:'1px solid #222',borderRadius:16,padding:'20px 16px',textAlign:'left',gridColumn:k==='extra'?'1/3':undefined}},
-       h('div',{style:{fontSize:24,marginBottom:6}},p.icon),h('div',{style:{fontWeight:700,fontSize:15}},p.name),h('div',{style:{fontSize:11,color:'#666',marginTop:2}},p.variations.length+' variations')
+       h('div',{style:{fontSize:24,marginBottom:6}},p.icon),h('div',{style:{fontWeight:700,fontSize:15,color:'#e8e8e8'}},p.name),h('div',{style:{fontSize:11,color:'#666',marginTop:2}},p.variations.length+' variations')
       ))
      )
     ),
@@ -504,7 +511,7 @@ function App(){
    showTimer&&h(TimerStopwatch,{onClose:()=>setShowTimer(false)}),
    h('div',{style:{background:'#111',borderRadius:20,padding:20,border:'1px solid #1e1e1e'}},
     h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
-     h('h2',{style:{fontSize:20,fontWeight:800}},prog.icon+' '+prog.name),
+     h('h2',{style:{fontSize:20,fontWeight:800,color:'#e8e8e8'}},prog.icon+' '+prog.name),
      h('button',{onClick:()=>setShowTimer(!showTimer),style:{background:'#1e1e3a',color:'#60a5fa',padding:'8px 14px',borderRadius:10,fontWeight:700,fontSize:12}},'\u23F1 Timer')
     ),
     h('div',{style:{display:'flex',gap:6,marginBottom:16}},prog.variations.map((_,v)=>h('button',{key:v,onClick:()=>chgVar(v),style:{flex:1,background:v===vi?prog.color:'#1a1a2e',color:v===vi?'#fff':'#888',borderRadius:8,padding:8,fontWeight:700,fontSize:13,border:v===vi?'none':'1px solid #333'}},'V'+(v+1)))),
@@ -555,6 +562,24 @@ function App(){
 }
 
 ReactDOM.render(React.createElement(App),document.getElementById('root'));
+</script>
+<script>
+// Register service worker for offline support + auto-update
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    // Check for updates every 60 seconds while the app is open
+    setInterval(() => reg.update(), 60000);
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'activated') {
+          // New version available — reload to get it
+          window.location.reload();
+        }
+      });
+    });
+  });
+}
 </script>
 </body>
 </html>
