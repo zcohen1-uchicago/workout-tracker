@@ -4,23 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Workout Tracker</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'DM Sans',system-ui,sans-serif; background:#0a0a0a; color:#e8e8e8; -webkit-font-smoothing:antialiased; }
-        input,select,textarea { font-size:16px !important; font-family:inherit; }
-        button { font-family:inherit; cursor:pointer; min-height:44px; border:none; }
-        ::-webkit-scrollbar { width:4px; }
-        ::-webkit-scrollbar-track { background:transparent; }
-        ::-webkit-scrollbar-thumb { background:#333; border-radius:4px; }
-        .glow { box-shadow:0 0 30px rgba(99,102,241,0.15); }
-        @keyframes slideUp { from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1} }
-        @keyframes pulse { 0%,100%{transform:scale(1)}50%{transform:scale(1.05)} }
-        @keyframes prBanner { 0%{transform:translateY(-100%);opacity:0}10%{transform:translateY(0);opacity:1}90%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0} }
-        .slide-up { animation:slideUp 0.3s ease forwards; }
-        .pr-banner { animation:prBanner 4s ease forwards; position:fixed; top:0; left:0; right:0; z-index:9999; padding:16px; text-align:center; background:linear-gradient(135deg,#f59e0b,#ef4444); color:#fff; font-weight:800; font-size:18px; }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'DM Sans',system-ui,sans-serif;background:#0a0a0a;color:#e8e8e8;-webkit-font-smoothing:antialiased}
+        input,select,textarea{font-size:16px!important;font-family:inherit}
+        button{font-family:inherit;cursor:pointer;min-height:44px;border:none}
+        @keyframes prBanner{0%{transform:translateY(-100%);opacity:0}10%{transform:translateY(0);opacity:1}90%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0}}
+        .pr-banner{animation:prBanner 4s ease forwards;position:fixed;top:0;left:0;right:0;z-index:9999;padding:16px;text-align:center;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;font-weight:800;font-size:18px}
     </style>
 </head>
 <body>
@@ -29,998 +21,465 @@
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
+const {useState,useEffect}=React;
+const ST={get:k=>{try{const d=localStorage.getItem(k);return d?JSON.parse(d):null}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
 
-// ─── Storage ───
-const storage = {
-    get: k => { try { const d=localStorage.getItem(k); return d?JSON.parse(d):null } catch(e){ return null } },
-    set: (k,v) => { try { localStorage.setItem(k,JSON.stringify(v)); return true } catch(e){ return false } },
+// Equipment now differentiates: 'Yoga/Stability Ball', 'Slam Ball', 'Medicine Ball'
+const allEquipment=['Barbell','Dumbbells','Kettlebells','Cable Machine','Pull-up Bar','Bench','Squat Rack','Leg Press','Rowing Machine','Treadmill','Battle Ropes','Sled','Box/Platform','Slam Ball','Medicine Ball','Yoga/Stability Ball','Resistance Bands','Dip Station','Hex Bar'];
+
+// Exercise database: eq=equipment, su=substitutes, de=description, cu=cues, mg=muscle groups
+const EX={
+"Barbell Deadlift-Clean-Press":{eq:['Barbell'],su:['DB Clean and Press','KB Clean and Press'],de:"Explosive full-body: deadlift, clean to shoulders, press overhead.",cu:["Flat back","Explosive hip drive","Catch on shoulders","Full lockout"],mg:['Full Body','Shoulders']},
+"KB Suitcase Squats":{eq:['Kettlebells'],su:['Goblet Squats','DB Suitcase Squats'],de:"Hold KB at side, squat upright.",cu:["Shoulders level","Core tight","Parallel depth","Drive heels"],mg:['Legs','Core']},
+"Battle Ropes":{eq:['Battle Ropes'],su:['Jump Rope','High Knees','Mountain Climbers'],de:"Alternating waves with heavy ropes.",cu:["Athletic stance","Rapid arms","Rhythm","Core engaged"],mg:['Cardio','Arms']},
+"Bulgarian Split Squats":{eq:['Bench','Dumbbells'],su:['Lunges','Step-Ups','Walking Lunges'],de:"Rear foot elevated single-leg squat.",cu:["Front shin vertical","Knee over toe","Chest up","Full depth"],mg:['Legs','Glutes']},
+"Box Jumps":{eq:['Box/Platform'],su:['Jump Squats','Step-Ups'],de:"Explosive jump onto platform.",cu:["Soft landing","Full hip extension","Land quietly","Step down"],mg:['Legs','Power']},
+"Yoga Ball Planks":{eq:['Yoga/Stability Ball'],su:['Planks','Dead Bugs'],de:"Plank on stability ball.",cu:["Neutral spine","Squeeze glutes","Don't sag","Breathe steady"],mg:['Core']},
+"Dead Ball Side-to-Side Slam":{eq:['Slam Ball'],su:['Russian Twists','Mountain Climbers'],de:"Rotational dead ball slam.",cu:["Rotate from hips","Slam hard","Athletic stance","Full range"],mg:['Core','Power']},
+"DB Walking Lunges":{eq:['Dumbbells'],su:['Walking Lunges','Bulgarian Split Squats'],de:"Walking lunges with DBs.",cu:["Big steps","Knee over ankle","Upright torso","Drive heel"],mg:['Legs','Glutes']},
+"Chin Ups":{eq:['Pull-up Bar'],su:['Lat Pulldown','Band Chin Ups'],de:"Underhand grip pull-up.",cu:["Full hang","Supinated grip","Chin over bar","Control descent"],mg:['Back','Biceps']},
+"Sled Rows":{eq:['Sled'],su:['Cable Rows','Barbell Rows','Band Rows'],de:"Row sled towards you.",cu:["Hinge at hips","Pull to chest","Squeeze back","Stay low"],mg:['Back','Biceps']},
+"Renegade Rows":{eq:['Dumbbells'],su:['Single Arm DB Rows','Plank Rows'],de:"Push-up position DB rows.",cu:["Minimize rotation","Wide feet","Core braced","Full range"],mg:['Back','Core']},
+"DB Bench Press":{eq:['Dumbbells','Bench'],su:['Barbell Bench','Push-Ups'],de:"Dumbbell bench press.",cu:["Full range","Control down","Press up","Stable shoulders"],mg:['Chest','Triceps']},
+"Ski Erg":{eq:[],su:['Rower','Battle Ropes','Jump Rope'],de:"Ski ergometer conditioning.",cu:["Hinge at hips","Drive with lats","Full extension","Rhythmic"],mg:['Cardio','Back']},
+"Push Ups":{eq:[],su:['Knee Push-Ups','Incline Push-Ups'],de:"Classic push-up.",cu:["Full lockout","Chest to floor","Core tight","Elbows 45"],mg:['Chest','Triceps']},
+"Tire Flips":{eq:[],su:['Deadball Over Shoulder Throws','KB Swings','Burpees'],de:"Flip tire for explosive power.",cu:["Squat to grip","Drive hips","Push over top","Full extension"],mg:['Full Body','Power']},
+"Deadball Over Shoulder Throws":{eq:['Slam Ball'],su:['KB Swings','Burpees','Ball Slams'],de:"Dead ball over shoulder throw.",cu:["Hinge pickup","Explosive hip drive","Rotate throw","Alternate sides"],mg:['Full Body','Power']},
+"DB Flat Bench":{eq:['Dumbbells','Bench'],su:['Barbell Bench','Push-Ups'],de:"Flat DB bench press.",cu:["Full range","Control down","Press up","Stable base"],mg:['Chest','Triceps']},
+"Sled Pushes":{eq:['Sled'],su:['Sprint Intervals','Farmer Walks'],de:"Push loaded sled.",cu:["Low angle","Drive through legs","Short steps","Arms extended"],mg:['Legs','Cardio']},
+"Over Shoulder Dead Ball Throws":{eq:['Slam Ball'],su:['KB Swings','Burpees'],de:"Dead ball over shoulder.",cu:["Deep pickup","Hip drive","Alternate sides","Full extension"],mg:['Full Body','Power']},
+"Deadball Over-Shoulder Toss":{eq:['Slam Ball'],su:['KB Swings','Burpees'],de:"Explosive dead ball shoulder toss.",cu:["Deep pickup","Hip drive","Rotate throw","Alternate sides"],mg:['Full Body','Power']},
+"Deadball Side Slams + Burpees":{eq:['Slam Ball'],su:['Burpees','Mountain Climbers'],de:"Dead ball slams + burpees combo.",cu:["Explosive slams","Quick burpee","Alternate sides","Keep pace"],mg:['Full Body','Cardio']},
+"Deadball Heel Elevated Squats":{eq:['Slam Ball'],su:['Goblet Squats','Heel Elevated Goblet Squat'],de:"Dead ball heel elevated squat.",cu:["Upright torso","Deep squat","Knees forward","Drive up"],mg:['Legs','Quads']},
+"SA KB Row":{eq:['Kettlebells'],su:['Single Arm DB Row','Cable Row'],de:"Single arm KB row.",cu:["Flat back","Pull to hip","Squeeze top","Control down"],mg:['Back','Biceps']},
+"Hip Thruster Machine":{eq:[],su:['Glute Bridge','Barbell Hip Thrusts'],de:"Machine hip thrust.",cu:["Full extension","Squeeze top","Control eccentric","Drive heels"],mg:['Glutes','Hamstrings']},
+"Single Arm Lat Pulldown":{eq:['Cable Machine'],su:['Single Arm DB Row','Band Pulldown'],de:"Unilateral lat pulldown.",cu:["Full stretch","Pull to shoulder","Squeeze lat","Control return"],mg:['Back','Biceps']},
+"Heel Elevated Goblet Squat":{eq:['Dumbbells'],su:['Goblet Squats','Front Squats'],de:"Goblet squat heels elevated.",cu:["Elbows between knees","Upright torso","Deep squat","Knees forward"],mg:['Legs','Quads']},
+"Pull Ups":{eq:['Pull-up Bar'],su:['Lat Pulldown','Inverted Rows','Band Pull Ups'],de:"Overhand grip pull chin over bar.",cu:["Full dead hang","Engage lats","Chest to bar","Control descent"],mg:['Back','Biceps']},
+"Rower":{eq:['Rowing Machine'],su:['Ski Erg','Battle Ropes','Jump Rope'],de:"Rowing machine conditioning.",cu:["Legs-back-arms","Drive with legs","Control return","Consistent rate"],mg:['Cardio','Back','Legs']},
+"Barbell Back Squat":{eq:['Barbell','Squat Rack'],su:['Front Squat','Goblet Squats','Leg Press'],de:"Barbell back squat.",cu:["Brace core","Break at hips and knees","Below parallel","Drive up"],mg:['Legs','Glutes']},
+"KB Bulgarian Split Squats":{eq:['Kettlebells','Bench'],su:['DB Bulgarian Split Squats','Lunges'],de:"Bulgarian split squat with KBs.",cu:["Front shin vertical","Upright torso","Full depth","Drive heel"],mg:['Legs','Glutes']},
+"KB Standing Shoulder Press":{eq:['Kettlebells'],su:['DB Shoulder Press','Barbell Press'],de:"Standing KB overhead press.",cu:["Core braced","Press vertically","Full lockout","Control down"],mg:['Shoulders']},
+"Heel Elevated Barbell Back Squat":{eq:['Barbell','Squat Rack'],su:['Heel Elevated Goblet Squat','Front Squat'],de:"Back squat heels elevated for quads.",cu:["Upright torso","Knees forward","Full depth","Drive up"],mg:['Legs','Quads']},
+"Seated DB Shoulder Press":{eq:['Dumbbells','Bench'],su:['Standing DB Press','Machine Press'],de:"Seated DB shoulder press.",cu:["Back against bench","Full lockout","Control down","Don't flare elbows"],mg:['Shoulders','Triceps']},
+"DB Bulgarian Split Squats":{eq:['Dumbbells','Bench'],su:['KB Bulgarian Split Squats','Lunges'],de:"Bulgarian split squats with DBs.",cu:["Front shin vertical","Upright torso","Full depth","Drive heel"],mg:['Legs','Glutes']},
+"Heel Elevated Goblet Squats":{eq:['Dumbbells'],su:['Goblet Squats','Front Squats'],de:"Goblet squat heels elevated.",cu:["Elbows between knees","Upright torso","Deep squat","Drive up"],mg:['Legs','Quads']},
+"Cable Tricep Extension":{eq:['Cable Machine'],su:['Dips','Push-Ups'],de:"Cable tricep pushdown.",cu:["Elbows pinned","Full extension","Squeeze bottom","Control return"],mg:['Triceps']},
+"Kettlebell Walks":{eq:['Kettlebells'],su:['Farmer Walks','DB Carries'],de:"Loaded KB carries.",cu:["Tall posture","Engage core","Steady pace","Shoulders back"],mg:['Core','Grip']},
+"Push Up Circuit":{eq:[],su:['Push Ups','Dips'],de:"Push-up variations in circuit.",cu:["Full range","Maintain form","Minimize rest","Scale as needed"],mg:['Chest','Triceps']},
+"Hex Bar Deadlift":{eq:['Hex Bar'],su:['Conventional Deadlift','Sumo Deadlift','Barbell Deadlift'],de:"Trap bar deadlift.",cu:["Neutral spine","Push floor away","Full hip extension","Controlled descent"],mg:['Legs','Back','Glutes']},
+"Standing DB Shoulder Press":{eq:['Dumbbells'],su:['KB Press','Barbell Press'],de:"Standing DB overhead press.",cu:["Core tight","Press overhead","Full lockout","Don't lean back"],mg:['Shoulders','Triceps']},
+"KB Walking Lunges":{eq:['Kettlebells'],su:['DB Walking Lunges','Walking Lunges'],de:"Walking lunges with KBs.",cu:["Big steps","Knee over ankle","Upright torso","Alternate legs"],mg:['Legs','Glutes']},
+"Walking Lunges Plate Overhead":{eq:[],su:['DB Walking Lunges','Walking Lunges'],de:"Walking lunges plate overhead.",cu:["Arms locked out","Plate overhead","Steady pace","Full depth"],mg:['Legs','Shoulders','Core']},
+"DB Lateral Raises":{eq:['Dumbbells'],su:['Cable Lateral Raises','Band Lateral Raises'],de:"DB lateral raises.",cu:["Slight lean","Lead with elbows","Don't swing","Control down"],mg:['Shoulders']},
+"Push Up/Dip Circuit":{eq:[],su:['Push Ups','Dips'],de:"Push-ups and dips circuit.",cu:["Full range","Minimize rest","Maintain form","Scale as needed"],mg:['Chest','Triceps']},
+"Barbell Flat Bench":{eq:['Barbell','Bench'],su:['DB Bench Press','Push-Ups'],de:"Classic barbell bench press.",cu:["Arch slightly","Retract shoulders","Bar to mid-chest","Full lockout"],mg:['Chest','Triceps']},
+"Machine Flys":{eq:[],su:['Cable Flys','DB Flys'],de:"Machine fly for chest.",cu:["Slight elbow bend","Squeeze center","Full stretch","Control return"],mg:['Chest']},
+"2 Cable Pullovers":{eq:['Cable Machine'],su:['DB Pullovers','Straight Arm Pulldowns'],de:"Cable pullover.",cu:["Slight elbow bend","Full stretch","Pull to hips","Control return"],mg:['Back','Chest']},
+"Dips":{eq:['Dip Station'],su:['Bench Dips','Push-Ups'],de:"Parallel bar dips.",cu:["Lean forward","Elbows 90","Full lockout","Control descent"],mg:['Chest','Triceps']},
+"DB Incline Bench":{eq:['Dumbbells','Bench'],su:['Push-Ups','Incline Barbell Press'],de:"Incline DB bench.",cu:["30-45 degree","Full stretch","Press up and in","Squeeze top"],mg:['Chest','Shoulders']},
+"DB Chest Supported Rows":{eq:['Dumbbells','Bench'],su:['Barbell Rows','Cable Rows'],de:"Chest supported DB rows.",cu:["Chest on bench","Pull to hips","Squeeze back","Control down"],mg:['Back']},
+"Straight Bar Tricep Pushdown":{eq:['Cable Machine'],su:['Rope Pushdown','Dips','Push-Ups'],de:"Straight bar tricep pushdown.",cu:["Elbows pinned","Full extension","Squeeze bottom","Control up"],mg:['Triceps']},
+"Machine Row":{eq:[],su:['Cable Rows','DB Rows'],de:"Seated row machine.",cu:["Chest against pad","Pull to chest","Squeeze back","Full stretch"],mg:['Back']},
+"Tricep Press Machine":{eq:[],su:['Push-Ups','Dips'],de:"Machine tricep press.",cu:["Elbows in","Full extension","Control return","Don't lock hard"],mg:['Triceps']},
+"Standing Barbell Shoulder Press":{eq:['Barbell'],su:['DB Shoulder Press','KB Press'],de:"Standing barbell OHP.",cu:["Core braced","Press overhead","Full lockout","Control down"],mg:['Shoulders','Triceps']},
+"DB Curls":{eq:['Dumbbells'],su:['Barbell Curls','Cable Curls'],de:"DB bicep curls.",cu:["Control movement","Full range","Don't swing","Squeeze top"],mg:['Biceps']},
+"Tricep Extensions":{eq:['Cable Machine'],su:['Dips','Push-Ups','DB Tricep Extensions'],de:"Cable tricep extensions.",cu:["Elbows pinned","Full extension","Squeeze bottom","Control up"],mg:['Triceps']},
+"Leg Press":{eq:['Leg Press'],su:['Hack Squat','Goblet Squats'],de:"Leg press machine.",cu:["Feet shoulder width","Full range","Don't lock knees","Control down"],mg:['Legs','Quads']},
+"SA DB Shoulder Press":{eq:['Dumbbells'],su:['Barbell Press','KB Press'],de:"Single arm DB shoulder press.",cu:["Core engaged","Press vertically","Control down","Don't lean"],mg:['Shoulders','Core']},
+"Lat Pulldown":{eq:['Cable Machine'],su:['Pull Ups','Band Pulldowns'],de:"Lat pulldown.",cu:["Full stretch","Pull to chest","Squeeze lats","Lean slightly back"],mg:['Back','Biceps']},
+"DB Tricep Extensions":{eq:['Dumbbells'],su:['Cable Pushdowns','Push-Ups'],de:"Overhead DB tricep extensions.",cu:["Elbows close","Full stretch","Extend to lockout","Control down"],mg:['Triceps']},
+"Shoulder Press Machine":{eq:[],su:['DB Shoulder Press','Barbell Press'],de:"Machine shoulder press.",cu:["Back against pad","Press to lockout","Control down","Don't flare"],mg:['Shoulders']},
+"Cable Curls":{eq:['Cable Machine'],su:['DB Curls','Barbell Curls'],de:"Cable bicep curls.",cu:["Elbows pinned","Full range","Squeeze top","Control down"],mg:['Biceps']},
+"Hack Squat":{eq:[],su:['Leg Press','Goblet Squats'],de:"Hack squat machine.",cu:["Feet shoulder width","Full depth","Drive through legs","Don't lock knees"],mg:['Legs','Quads']},
+"V Handle Tricep Pushdown":{eq:['Cable Machine'],su:['Straight Bar Pushdown','Push-Ups'],de:"V-handle tricep pushdown.",cu:["Elbows pinned","Full extension","Squeeze bottom","Control up"],mg:['Triceps']},
+"Seated Row":{eq:[],su:['Cable Rows','DB Rows'],de:"Seated row machine.",cu:["Sit tall","Pull to chest","Squeeze back","Full stretch"],mg:['Back']},
+"Lunges":{eq:[],su:['Walking Lunges','Step-Ups'],de:"Bodyweight or weighted lunges.",cu:["Big step","Knee over ankle","Upright torso","Alternate legs"],mg:['Legs','Glutes']},
+"Walking Lunges":{eq:[],su:['Lunges','Step-Ups'],de:"Walking forward lunges.",cu:["Big steps","Knee over ankle","Upright","Alternate legs"],mg:['Legs','Glutes']},
+"Step-Ups":{eq:['Box/Platform'],su:['Lunges','Bulgarian Split Squats'],de:"Step up onto box.",cu:["Drive through top foot","Full extension","Control down","Don't push off bottom"],mg:['Legs','Glutes']},
+"Jump Squats":{eq:[],su:['Box Jumps','Air Squats'],de:"Explosive squat jumps.",cu:["Deep squat","Explode up","Soft landing","Quick repeat"],mg:['Legs','Power']},
+"Mountain Climbers":{eq:[],su:['High Knees','Burpees'],de:"Plank position, drive knees rapidly.",cu:["Flat back","Fast knees","Core tight","Steady rhythm"],mg:['Core','Cardio']},
+"High Knees":{eq:[],su:['Mountain Climbers','Jump Rope'],de:"Run in place, knees high.",cu:["Knees to hip height","Pump arms","Stay on toes","Fast pace"],mg:['Cardio','Legs']},
+"Jump Rope":{eq:[],su:['High Knees','Mountain Climbers'],de:"Jump rope cardio.",cu:["Light on feet","Wrists turn rope","Steady rhythm","Eyes forward"],mg:['Cardio']},
+"Burpees":{eq:[],su:['Mountain Climbers','Jump Squats'],de:"Full body conditioning.",cu:["Chest to floor","Explosive jump","Full extension","Quick pace"],mg:['Full Body','Cardio']},
+"KB Swings":{eq:['Kettlebells'],su:['Jump Squats','Burpees'],de:"KB swing for hip power.",cu:["Hinge at hips","Snap hips forward","Arms are pendulum","Eye level"],mg:['Glutes','Cardio']},
+"Goblet Squats":{eq:['Dumbbells'],su:['Bodyweight Squats','Front Squats'],de:"Hold DB at chest, squat deep.",cu:["Elbows between knees","Chest up","Deep squat","Knees out"],mg:['Legs','Quads']},
+"Planks":{eq:[],su:['Dead Bugs','Bird Dogs'],de:"Forearm plank hold.",cu:["Neutral spine","Squeeze glutes","Breathe steadily","Don't sag"],mg:['Core']},
+"Dead Bugs":{eq:[],su:['Planks','Bird Dogs'],de:"Supine anti-extension core exercise.",cu:["Low back pressed down","Opposite arm/leg extend","Slow controlled","Breathe out on extend"],mg:['Core']},
 };
 
-// ─── Exercise Database ───
-const exercises = {
-    // Clean-Press exercises
-    "Barbell Deadlift-Clean-Press": { equipment:['Barbell'], substitutes:['DB Clean and Press','KB Clean and Press'], description:"Explosive full-body movement. Deadlift bar from ground, clean to shoulders, press overhead.", formCues:["Flat back on deadlift","Explosive hip drive","Catch bar on shoulders","Full lockout overhead"], muscleGroups:['Full Body','Shoulders','Legs'] },
-    "Barbell Clean": { equipment:['Barbell'], substitutes:['DB Clean','KB Clean'], description:"Clean barbell from floor to rack position on shoulders.", formCues:["Pull close to body","Triple extension","Fast elbows","Absorb in front squat"], muscleGroups:['Full Body','Traps'] },
-    "KB Suitcase Squats": { equipment:['Kettlebells'], substitutes:['DB Suitcase Squats','Goblet Squats'], description:"Hold kettlebell at side like suitcase. Squat keeping torso upright.", formCues:["Shoulders level","Core tight","Squat to parallel","Drive through heels"], muscleGroups:['Legs','Core'] },
-    "Battle Ropes": { equipment:['Battle Ropes'], substitutes:['Jump Rope','High Knees','Mountain Climbers'], description:"Create alternating waves with heavy ropes for conditioning.", formCues:["Athletic stance","Rapid arms","Maintain rhythm","Core engaged"], muscleGroups:['Cardio','Arms','Core'] },
-    "Bulgarian Split Squats": { equipment:['Bench','Dumbbells'], substitutes:['Lunges','Step-Ups','Walking Lunges'], description:"Rear foot elevated on bench, front leg squats. Single-leg strength builder.", formCues:["Front shin vertical","Knee tracks over toe","Chest up","Full depth"], muscleGroups:['Legs','Glutes'] },
-    "Box Jumps": { equipment:['Box/Platform'], substitutes:['Jump Squats','Step-Ups'], description:"Explosive jump onto platform. Power and plyometric builder.", formCues:["Soft landing","Full hip extension","Land quietly","Step down"], muscleGroups:['Legs','Power'] },
-    "Yoga Ball Planks": { equipment:['Medicine Ball'], substitutes:['Planks','Dead Bugs'], description:"Plank with forearms on yoga/stability ball for anti-extension core work.", formCues:["Neutral spine","Squeeze glutes","Don't sag hips","Breathe steady"], muscleGroups:['Core'] },
-    "Dead Ball Side-to-Side Slam": { equipment:['Medicine Ball'], substitutes:['Russian Twists','Woodchops'], description:"Explosive rotational slam of dead ball side to side.", formCues:["Rotate from hips","Slam hard","Athletic stance","Full range"], muscleGroups:['Core','Power'] },
-    "DB Walking Lunges": { equipment:['Dumbbells'], substitutes:['Barbell Lunges','Bulgarian Split Squats'], description:"Walking lunges holding dumbbells at sides.", formCues:["Big steps","Knee over ankle","Upright torso","Drive through heel"], muscleGroups:['Legs','Glutes'] },
-    "Chin Ups": { equipment:['Pull-up Bar'], substitutes:['Lat Pulldown','Band Assisted Chin Ups'], description:"Underhand grip pull-up. Bicep and lat emphasis.", formCues:["Full hang start","Supinated grip","Chin over bar","Control descent"], muscleGroups:['Back','Biceps'] },
-    "Sled Rows": { equipment:['Sled'], substitutes:['Cable Rows','Band Rows'], description:"Row the sled towards you using ropes/handles.", formCues:["Hinge at hips","Pull to chest","Squeeze back","Stay low"], muscleGroups:['Back','Biceps'] },
-    "Renegade Rows": { equipment:['Dumbbells'], substitutes:['Plank Rows','Single Arm DB Rows'], description:"In push-up position, row one dumbbell at a time.", formCues:["Minimize rotation","Wide foot stance","Core braced","Full row range"], muscleGroups:['Back','Core'] },
-    "DB Bench Press": { equipment:['Dumbbells','Bench'], substitutes:['Barbell Bench','Push-Ups','Machine Press'], description:"Dumbbell bench press. Greater range of motion than barbell.", formCues:["Full range of motion","Control down","Press up and in","Stable shoulder blades"], muscleGroups:['Chest','Triceps'] },
-    "Ski Erg": { equipment:[], substitutes:['Rower','Battle Ropes','Jump Rope'], description:"Ski ergometer for upper body cardio conditioning.", formCues:["Hinge at hips","Drive with lats","Full extension","Rhythmic pace"], muscleGroups:['Cardio','Back','Core'] },
-    "Push Ups": { equipment:[], substitutes:['Knee Push-Ups','Incline Push-Ups'], description:"Classic push-up for chest and tricep endurance.", formCues:["Full lockout","Chest to floor","Core tight","Elbows 45°"], muscleGroups:['Chest','Triceps','Core'] },
-    "Spider-Man Push Ups": { equipment:[], substitutes:['Push Ups','Mountain Climbers'], description:"Push-up with alternating knee to elbow for core activation.", formCues:["Knee to elbow at bottom","Full push-up range","Alternate sides","Core engaged"], muscleGroups:['Chest','Core'] },
-    "Lat Pulldown Machine": { equipment:['Cable Machine'], substitutes:['Pull Ups','Band Pulldowns'], description:"Machine lat pulldown for back width.", formCues:["Lean slightly back","Pull to upper chest","Squeeze lats","Control return"], muscleGroups:['Back','Biceps'] },
-    "Single Leg Machine Press": { equipment:['Leg Press'], substitutes:['Bulgarian Split Squats','Pistol Squats'], description:"Single leg press on machine for unilateral leg strength.", formCues:["Full range of motion","Don't lock out","Control eccentric","Drive through heel"], muscleGroups:['Legs'] },
-    "Bent Over Barbell Row": { equipment:['Barbell'], substitutes:['DB Rows','Cable Rows','T-Bar Rows'], description:"Bent over barbell row for back thickness.", formCues:["Flat back","Pull to lower chest","Squeeze shoulder blades","Don't jerk"], muscleGroups:['Back','Biceps'] },
-    "Barbell Step Ups": { equipment:['Barbell','Box/Platform'], substitutes:['DB Step Ups','Bulgarian Split Squats'], description:"Barbell on back, step up onto platform.", formCues:["Full step up","Drive through top foot","Control down","Don't push off bottom"], muscleGroups:['Legs','Glutes'] },
-    "Rower": { equipment:['Rowing Machine'], substitutes:['Ski Erg','Battle Ropes','Jump Rope'], description:"Rowing machine for full body cardio conditioning.", formCues:["Legs-back-arms sequence","Drive with legs","Control the return","Consistent stroke rate"], muscleGroups:['Cardio','Back','Legs'] },
-    "Barbell Clean - Squat": { equipment:['Barbell'], substitutes:['DB Clean and Squat','KB Clean and Squat'], description:"Clean barbell to shoulders then perform a front squat.", formCues:["Fast elbows in clean","High elbow position","Full depth squat","Drive up strong"], muscleGroups:['Full Body','Legs'] },
-    "Deadball Heel Elevated Squats": { equipment:['Medicine Ball'], substitutes:['Goblet Squats','Heel Elevated Squats'], description:"Hold dead ball at chest, squat with heels elevated for quad emphasis.", formCues:["Upright torso","Deep squat","Knees forward","Drive up through quads"], muscleGroups:['Legs','Quads'] },
-    "SA KB Row": { equipment:['Kettlebells'], substitutes:['Single Arm DB Row','Cable Row'], description:"Single arm kettlebell row for back and grip work.", formCues:["Flat back","Pull to hip","Squeeze at top","Control down"], muscleGroups:['Back','Biceps'] },
-    "Deadball Over Shoulder Throws": { equipment:['Medicine Ball'], substitutes:['Ball Slams','KB Swings'], description:"Pick dead ball from ground and throw over shoulder. Full body power.", formCues:["Hinge to pick up","Explosive hip drive","Rotate and throw","Alternate sides"], muscleGroups:['Full Body','Power'] },
-    "DB Flat Bench": { equipment:['Dumbbells','Bench'], substitutes:['Barbell Bench','Push-Ups'], description:"Flat dumbbell bench press.", formCues:["Full range","Control down","Press up","Stable base"], muscleGroups:['Chest','Triceps'] },
-    "Sled Pushes": { equipment:['Sled'], substitutes:['Prowler Push','Farmer Walks'], description:"Push loaded sled for conditioning and leg drive.", formCues:["Low body angle","Drive through legs","Short powerful steps","Arms extended"], muscleGroups:['Legs','Cardio'] },
-    "Planks": { equipment:[], substitutes:['Dead Bugs','Bird Dogs'], description:"Forearm plank hold for core stability.", formCues:["Neutral spine","Squeeze glutes","Breathe steadily","Don't sag"], muscleGroups:['Core'] },
-    "Walking Lunge - Shoulder Press": { equipment:['Dumbbells'], substitutes:['DB Walking Lunges','Lunge to Press'], description:"Combine walking lunges with overhead press for full body work.", formCues:["Press at top of lunge","Stable core","Big steps","Control both movements"], muscleGroups:['Legs','Shoulders'] },
-    "Tire Flips": { equipment:[], substitutes:['Deadball Throws','KB Swings'], description:"Flip large tire for explosive full body power.", formCues:["Squat to grip","Drive with hips","Push over at top","Full extension"], muscleGroups:['Full Body','Power'] },
+const WP={
+cleanpress:{name:"Clean-Press Day",icon:"\u{1F3CB}",color:"#6366f1",
+ variations:[[
+  {n:"Barbell Deadlift-Clean-Press",s:4,r:"10-12",re:60},{n:"KB Suitcase Squats",s:4,r:"10-12",re:120},{n:"Battle Ropes",s:4,r:"30-60 sec",re:60},{n:"Bulgarian Split Squats",s:4,r:"10-12",re:60},{n:"Yoga Ball Planks",s:4,r:"30-60 sec",re:60},{n:"Dead Ball Side-to-Side Slam",s:4,r:"30-60 sec",re:60}
+ ],[
+  {n:"Barbell Deadlift-Clean-Press",s:4,r:"10-12",re:60},{n:"Box Jumps",s:4,r:"10-15",re:60},{n:"DB Walking Lunges",s:4,r:"10-12",re:60},{n:"Chin Ups",s:4,r:"AMRAP",re:60},{n:"Sled Rows",s:4,r:"10-12",re:60},{n:"Renegade Rows",s:4,r:"30-60 sec",re:60}
+ ],[
+  {n:"Barbell Deadlift-Clean-Press",s:4,r:"8-10",re:60},{n:"Box Jumps",s:4,r:"10-15",re:60},{n:"DB Bench Press",s:4,r:"10-12",re:60},{n:"Tire Flips",s:4,r:"30-60 sec",re:60},{n:"Ski Erg",s:4,r:"100-300m",re:60},{n:"Push Ups",s:4,r:"10-15",re:60}
+ ]],
+ cf:{t:"Cardio Finisher",opts:[
+  {n:"Battle Ropes Tabata",d:"8 rounds: 20s work / 10s rest",eq:['Battle Ropes']},
+  {n:"Bodyweight Blitz",d:"3 rounds: 15 burpees, 20 mountain climbers, 25 jump squats",eq:[]},
+  {n:"Ski Erg Intervals",d:"4x200m sprint, 1 min rest",eq:[]}
+ ]}
+},
+squat:{name:"Squat Day",icon:"\u{1F9B5}",color:"#8b5cf6",
+ variations:[[
+  {n:"Hip Thruster Machine",s:4,r:"10-12",re:120},{n:"Single Arm Lat Pulldown",s:4,r:"10-12",re:60},{n:"Heel Elevated Goblet Squat",s:4,r:"10-15",re:60},{n:"Pull Ups",s:4,r:"AMRAP",re:60},{n:"Rower",s:4,r:"30-90 sec",re:60},{n:"Sled Rows",s:4,r:"15-25",re:60}
+ ],[
+  {n:"Barbell Back Squat",s:4,r:"6-8",re:120},{n:"KB Bulgarian Split Squats",s:4,r:"10-12",re:60},{n:"KB Standing Shoulder Press",s:4,r:"10-12",re:60},{n:"Rower",s:3,r:"200m",re:60},{n:"Battle Ropes",s:3,r:"30-60 sec",re:60}
+ ],[
+  {n:"Heel Elevated Barbell Back Squat",s:4,r:"6-8",re:120},{n:"Seated DB Shoulder Press",s:4,r:"10-12",re:60},{n:"DB Bulgarian Split Squats",s:4,r:"10-12",re:60},{n:"Rower",s:3,r:"200m",re:60},{n:"Battle Ropes",s:3,r:"30-60 sec",re:60}
+ ]],
+ cf:{t:"Cardio Finisher",opts:[
+  {n:"Rower Intervals",d:"5x250m row, 1 min rest",eq:['Rowing Machine']},
+  {n:"Bodyweight Burnout",d:"50 air squats, 40 lunges, 30 jump squats, 20 burpees",eq:[]},
+  {n:"KB Walk + Push-Up Circuit",d:"3 rounds: 100m KB carry, 15 push-ups",eq:['Kettlebells']}
+ ]}
+},
+deadlift:{name:"Deadlift Day",icon:"\u{1F480}",color:"#ec4899",
+ variations:[[
+  {n:"Hex Bar Deadlift",s:4,r:"8-10",re:120},{n:"Battle Ropes",s:4,r:"30-60 sec",re:60},{n:"Standing DB Shoulder Press",s:4,r:"10-12",re:60},{n:"Box Jumps",s:4,r:"10-15",re:60},{n:"KB Walking Lunges",s:4,r:"10-12",re:60},{n:"Push Up/Dip Circuit",s:4,r:"30-60 sec",re:60}
+ ],[
+  {n:"Hex Bar Deadlift",s:4,r:"8-10",re:120},{n:"Over Shoulder Dead Ball Throws",s:4,r:"10-20",re:60},{n:"KB Bulgarian Split Squats",s:4,r:"10-12",re:60},{n:"Seated DB Shoulder Press",s:4,r:"10-12",re:60},{n:"Walking Lunges Plate Overhead",s:4,r:"10-12",re:60},{n:"DB Lateral Raises",s:4,r:"10-12",re:60}
+ ],[
+  {n:"Hex Bar Deadlift",s:4,r:"6-8",re:120},{n:"DB Flat Bench",s:4,r:"10-12",re:60},{n:"Heel Elevated Goblet Squats",s:4,r:"10-12",re:60},{n:"Ski Erg",s:4,r:"100-300m",re:60},{n:"Battle Ropes",s:4,r:"30-60 sec",re:60},{n:"Deadball Over-Shoulder Toss",s:4,r:"10-20",re:60}
+ ]],
+ cf:{t:"Cardio Finisher",opts:[
+  {n:"Sled Push + Pull",d:"4 rounds: push 40m, pull back, 1 min rest",eq:['Sled']},
+  {n:"Rower Pyramid",d:"100m, 200m, 300m, 200m, 100m with 1 min rest",eq:['Rowing Machine']},
+  {n:"Bodyweight EMOM",d:"10 min EMOM: 5 burpees + 10 mountain climbers",eq:[]}
+ ]}
+},
+bench:{name:"Bench/Back Day",icon:"\u{1F3CB}\u{FE0F}\u{200D}\u{2642}\u{FE0F}",color:"#f59e0b",
+ variations:[[
+  {n:"Barbell Flat Bench",s:4,r:"8-12",re:120},{n:"Pull Ups",s:4,r:"AMRAP",re:60},{n:"Bulgarian Split Squats",s:4,r:"10-12",re:60},{n:"Battle Ropes",s:4,r:"30-60 sec",re:60},{n:"Ski Erg",s:4,r:"30-60 sec",re:60},{n:"Deadball Side Slams + Burpees",s:4,r:"30-60 sec",re:60}
+ ],[
+  {n:"Barbell Flat Bench",s:4,r:"8-12",re:120},{n:"Pull Ups",s:4,r:"AMRAP",re:60},{n:"Machine Flys",s:4,r:"12-15",re:60},{n:"2 Cable Pullovers",s:4,r:"12-15",re:60},{n:"Dips",s:3,r:"8-12",re:60},{n:"Rower",s:3,r:"100-300m",re:60}
+ ],[
+  {n:"Barbell Flat Bench",s:4,r:"6-10",re:120},{n:"Pull Ups",s:4,r:"AMRAP",re:60},{n:"DB Incline Bench",s:4,r:"8-12",re:60},{n:"DB Chest Supported Rows",s:4,r:"10-12",re:60},{n:"Straight Bar Tricep Pushdown",s:4,r:"10-12",re:60},{n:"Rower",s:3,r:"100-300m",re:60}
+ ]],
+ cf:{t:"Cardio Finisher",opts:[
+  {n:"Ski Erg + Rower Relay",d:"4 rounds: 150m ski, 150m row, 1 min rest",eq:['Rowing Machine']},
+  {n:"Dips + Push-Up Ladder",d:"10-8-6-4-2 dips, 5-10-15-20-25 push-ups",eq:[]},
+  {n:"5 Min AMRAP",d:"5 burpees, 10 push-ups, 15 air squats - max rounds",eq:[]}
+ ]}
+},
+extra:{name:"Extra Day",icon:"\u{26A1}",color:"#10b981",
+ variations:[[
+  {n:"Standing Barbell Shoulder Press",s:4,r:"8-10",re:60},{n:"DB Curls",s:4,r:"10-12",re:60},{n:"DB Bench Press",s:4,r:"10-12",re:60},{n:"DB Lateral Raises",s:4,r:"10-12",re:60},{n:"Machine Row",s:3,r:"10-12",re:60},{n:"Tricep Extensions",s:3,r:"10-12",re:60}
+ ],[
+  {n:"Leg Press",s:4,r:"10-12",re:60},{n:"SA DB Shoulder Press",s:4,r:"8-10",re:60},{n:"Lat Pulldown",s:4,r:"10-12",re:60},{n:"DB Tricep Extensions",s:4,r:"10-12",re:60},{n:"Shoulder Press Machine",s:3,r:"10-12",re:60},{n:"Cable Curls",s:3,r:"10-12",re:60}
+ ],[
+  {n:"Hack Squat",s:3,r:"10-12",re:90},{n:"DB Bench Press",s:3,r:"10-12",re:60},{n:"Bulgarian Split Squats",s:3,r:"10-12",re:60},{n:"Lat Pulldown",s:3,r:"10-12",re:60},{n:"V Handle Tricep Pushdown",s:3,r:"10-12",re:60}
+ ]],
+ cf:{t:"Cardio Finisher",opts:[
+  {n:"Countdown Chipper",d:"100 mountain climbers, 75 jump squats, 50 lunges, 25 burpees",eq:[]},
+  {n:"4-Min Rounds x4",d:"Each round: 200m row, 10 burpees - rest between",eq:['Rowing Machine']},
+  {n:"15-Min AMRAP Ladder",d:"Start 4 reps: burpees, high knees, inchworms, v-ups - add 2 each round",eq:[]}
+ ]}
+}};
 
-    // Squat Day exercises
-    "Hip Thruster Machine": { equipment:[], substitutes:['Barbell Hip Thrusts','Glute Bridge'], description:"Machine hip thrust for glute isolation and strength.", formCues:["Full hip extension","Squeeze at top","Control eccentric","Drive through heels"], muscleGroups:['Glutes','Hamstrings'] },
-    "Single Arm Lat Pulldown": { equipment:['Cable Machine'], substitutes:['Single Arm DB Row','Band Pulldown'], description:"Unilateral lat pulldown for balanced back development.", formCues:["Full stretch at top","Pull to shoulder","Squeeze lat","Control return"], muscleGroups:['Back','Biceps'] },
-    "Heel Elevated Goblet Squat": { equipment:['Dumbbells'], substitutes:['Goblet Squats','Front Squats'], description:"Goblet squat with heels elevated for increased quad emphasis and depth.", formCues:["Elbows between knees","Upright torso","Deep squat","Knees forward"], muscleGroups:['Legs','Quads'] },
-    "Pull Ups": { equipment:['Pull-up Bar'], substitutes:['Lat Pulldown','Inverted Rows','Band Pull Ups'], description:"Overhand grip, pull chin over bar. Premier back exercise.", formCues:["Full dead hang","Engage lats first","Chest to bar","Control descent"], muscleGroups:['Back','Biceps'] },
-    "SA Landmine Shoulder Press": { equipment:['Barbell'], substitutes:['DB Shoulder Press','KB Press'], description:"Single arm press using landmine for shoulder-friendly pressing.", formCues:["Brace core","Press at angle","Full lockout","Control down"], muscleGroups:['Shoulders'] },
-    "Goblet Squats": { equipment:['Dumbbells'], substitutes:['KB Goblet Squat','Front Squat'], description:"Hold dumbbell at chest, squat deep.", formCues:["Elbows between knees","Chest up","Deep squat","Knees out"], muscleGroups:['Legs','Quads'] },
-    "Barbell Back Squat": { equipment:['Barbell','Squat Rack'], substitutes:['Front Squat','Goblet Squat','Leg Press'], description:"Back squat with barbell. King of leg exercises.", formCues:["Brace core","Break at hips and knees","Depth below parallel","Drive up strong"], muscleGroups:['Legs','Glutes','Core'] },
-    "KB Bulgarian Split Squats": { equipment:['Kettlebells','Bench'], substitutes:['DB Bulgarian Split Squats','Lunges'], description:"Bulgarian split squat holding kettlebells.", formCues:["Front shin vertical","Upright torso","Full depth","Drive through front heel"], muscleGroups:['Legs','Glutes'] },
-    "KB Standing Shoulder Press": { equipment:['Kettlebells'], substitutes:['DB Shoulder Press','Barbell Press'], description:"Standing kettlebell overhead press.", formCues:["Core braced","Press vertically","Full lockout","Control down"], muscleGroups:['Shoulders'] },
-    "Heel Elevated Barbell Back Squat": { equipment:['Barbell','Squat Rack'], substitutes:['Heel Elevated Goblet Squat','Front Squat'], description:"Back squat with heels elevated for greater quad emphasis.", formCues:["Upright torso","Knees forward","Full depth","Drive up explosively"], muscleGroups:['Legs','Quads'] },
-    "Seated DB Shoulder Press": { equipment:['Dumbbells','Bench'], substitutes:['Standing DB Press','Machine Press'], description:"Seated dumbbell shoulder press for strict pressing.", formCues:["Back against bench","Press to full lockout","Control down","Don't flare elbows"], muscleGroups:['Shoulders','Triceps'] },
-    "DB Bulgarian Split Squats": { equipment:['Dumbbells','Bench'], substitutes:['KB Bulgarian Split Squats','Lunges'], description:"Bulgarian split squats holding dumbbells.", formCues:["Front shin vertical","Upright torso","Full depth","Drive through front heel"], muscleGroups:['Legs','Glutes'] },
-    "Single Leg Press": { equipment:['Leg Press'], substitutes:['Bulgarian Split Squats','Pistol Squats'], description:"Single leg press for unilateral quad work.", formCues:["Full range","Don't lock out","Control down","Drive through heel"], muscleGroups:['Legs','Quads'] },
-    "Cable Tricep Extension": { equipment:['Cable Machine'], substitutes:['Tricep Dips','Skull Crushers'], description:"Cable tricep pushdown for tricep isolation.", formCues:["Elbows pinned","Full extension","Squeeze at bottom","Control return"], muscleGroups:['Triceps'] },
-    "V Squat": { equipment:[], substitutes:['Hack Squat','Barbell Back Squat'], description:"V-squat machine for leg development with back support.", formCues:["Feet shoulder width","Full depth","Drive through legs","Don't lock knees"], muscleGroups:['Legs','Quads'] },
-    "Hip Mobility": { equipment:[], substitutes:[], description:"Hip mobility drills between sets.", formCues:["90/90 stretches","Hip circles","Pigeon pose","Frog stretch"], muscleGroups:['Mobility'] },
-    "Kettlebell Walks": { equipment:['Kettlebells'], substitutes:['Farmer Walks','DB Carries'], description:"Loaded carries with kettlebells for grip and core.", formCues:["Tall posture","Engage core","Steady pace","Shoulders back"], muscleGroups:['Core','Grip'] },
-    "Push Up Circuit": { equipment:[], substitutes:['Push Ups','Dips'], description:"Various push-up variations performed in circuit.", formCues:["Full range","Good form each rep","Minimize rest","Scale as needed"], muscleGroups:['Chest','Triceps'] },
-
-    // Deadlift Day exercises
-    "Hex Bar Deadlift": { equipment:['Hex Bar'], substitutes:['Conventional Deadlift','Sumo Deadlift','Barbell Deadlift'], description:"Trap bar deadlift. Quad emphasis, more back-friendly.", formCues:["Neutral spine","Push floor away","Full hip extension","Controlled descent"], muscleGroups:['Legs','Back','Glutes'] },
-    "Standing Kettle Press": { equipment:['Kettlebells'], substitutes:['DB Shoulder Press','Barbell Press'], description:"Standing kettlebell overhead press.", formCues:["Core braced","Press vertically","Full lockout","Control down"], muscleGroups:['Shoulders'] },
-    "KB Walking Lunges": { equipment:['Kettlebells'], substitutes:['DB Walking Lunges','Barbell Lunges'], description:"Walking lunges holding kettlebells.", formCues:["Big steps","Knee over ankle","Upright torso","Alternate legs"], muscleGroups:['Legs','Glutes'] },
-    "Sled Push/Pull": { equipment:['Sled'], substitutes:['Farmer Walks','Battle Ropes'], description:"Push sled down, pull it back for full body conditioning.", formCues:["Low angle push","Hand over hand pull","Drive with legs","Stay low"], muscleGroups:['Full Body','Cardio'] },
-    "Standing DB Shoulder Press": { equipment:['Dumbbells'], substitutes:['KB Press','Barbell Press'], description:"Standing dumbbell overhead press.", formCues:["Core tight","Press overhead","Full lockout","Don't lean back"], muscleGroups:['Shoulders','Triceps'] },
-    "Dead Ball Slams": { equipment:['Medicine Ball'], substitutes:['Ball Slams','KB Swings'], description:"Overhead slam of dead ball for power and conditioning.", formCues:["Full overhead reach","Slam with force","Hinge to pick up","Explosive rhythm"], muscleGroups:['Full Body','Core'] },
-    "Walking Lunges Plate Overhead": { equipment:[], substitutes:['DB Walking Lunges','Overhead Lunges'], description:"Walking lunges holding plate overhead for added core challenge.", formCues:["Arms locked out","Plate directly overhead","Steady pace","Full lunge depth"], muscleGroups:['Legs','Shoulders','Core'] },
-    "DB Lateral Raises": { equipment:['Dumbbells'], substitutes:['Cable Lateral Raises','Band Lateral Raises'], description:"Dumbbell lateral raises for side delt development.", formCues:["Slight lean forward","Lead with elbows","Don't swing","Control down"], muscleGroups:['Shoulders'] },
-    "Push Up/Dip Circuit": { equipment:[], substitutes:['Push Ups','Dips'], description:"Alternating push-ups and dips in circuit format.", formCues:["Full range each","Minimize rest","Maintain form","Scale as needed"], muscleGroups:['Chest','Triceps'] },
-    "Over Shoulder Dead Ball Throws": { equipment:['Medicine Ball'], substitutes:['KB Swings','Ball Slams'], description:"Pick up dead ball and throw over shoulder explosively.", formCues:["Deep squat to pick up","Explosive hip drive","Alternate sides","Full extension"], muscleGroups:['Full Body','Power'] },
-    "Ball Slams": { equipment:['Medicine Ball'], substitutes:['Dead Ball Slams','KB Swings'], description:"Overhead ball slam for power conditioning.", formCues:["Full extension overhead","Slam hard","Hinge to pick up","Fast tempo"], muscleGroups:['Full Body','Core'] },
-    "Seated Band Rows": { equipment:['Resistance Bands'], substitutes:['Cable Rows','DB Rows'], description:"Seated row using resistance band.", formCues:["Sit tall","Pull to chest","Squeeze shoulder blades","Control return"], muscleGroups:['Back'] },
-    "Cable Lat Pulldown": { equipment:['Cable Machine'], substitutes:['Pull Ups','Band Pulldowns'], description:"Cable lat pulldown for back width.", formCues:["Lean slightly back","Pull to chest","Squeeze lats","Full stretch"], muscleGroups:['Back','Biceps'] },
-    "Cable Straight Bar Tricep Extension": { equipment:['Cable Machine'], substitutes:['Tricep Dips','DB Tricep Extension'], description:"Straight bar cable tricep pushdown.", formCues:["Elbows pinned","Full extension","Squeeze at bottom","Control up"], muscleGroups:['Triceps'] },
-    "2 Handle Cable Lat Pulldown": { equipment:['Cable Machine'], substitutes:['Pull Ups','Lat Pulldown Machine'], description:"Lat pulldown with individual handles for independent arm work.", formCues:["Full stretch at top","Pull wide to narrow","Squeeze back","Control return"], muscleGroups:['Back','Biceps'] },
-    "Incline Machine Press": { equipment:[], substitutes:['Incline DB Press','Incline Barbell Press'], description:"Incline press machine for upper chest emphasis.", formCues:["Chest up","Full range","Press to lockout","Control down"], muscleGroups:['Chest','Shoulders'] },
-    "KB Bulgarian Split Squats DL": { equipment:['Kettlebells','Bench'], substitutes:['DB Bulgarian Split Squats','Lunges'], description:"Bulgarian split squat holding kettlebells.", formCues:["Front shin vertical","Upright torso","Full depth","Drive through front heel"], muscleGroups:['Legs','Glutes'] },
-    "Yoga Ball Plank": { equipment:['Medicine Ball'], substitutes:['Planks','Dead Bugs'], description:"Plank with forearms on stability ball.", formCues:["Neutral spine","Squeeze glutes","Don't sag","Breathe steady"], muscleGroups:['Core'] },
-    "DB Flat Bench DL": { equipment:['Dumbbells','Bench'], substitutes:['Barbell Bench','Push-Ups'], description:"Flat dumbbell bench press.", formCues:["Full range","Control down","Press up","Stable base"], muscleGroups:['Chest','Triceps'] },
-    "Heel Elevated Goblet Squats": { equipment:['Dumbbells'], substitutes:['Goblet Squats','Front Squats'], description:"Goblet squat with heels elevated for quad emphasis.", formCues:["Elbows between knees","Upright torso","Deep squat","Drive up"], muscleGroups:['Legs','Quads'] },
-    "Deadball Over-Shoulder Toss": { equipment:['Medicine Ball'], substitutes:['KB Swings','Ball Slams'], description:"Explosive dead ball throw over shoulder for power.", formCues:["Deep pickup","Hip drive","Rotate and throw","Alternate sides"], muscleGroups:['Full Body','Power'] },
-
-    // Bench/Back exercises
-    "Barbell Flat Bench": { equipment:['Barbell','Bench'], substitutes:['DB Bench Press','Machine Press','Push-Ups'], description:"Classic barbell bench press. Primary chest builder.", formCues:["Arch back slightly","Retract shoulder blades","Bar to mid-chest","Full lockout"], muscleGroups:['Chest','Triceps'] },
-    "Barbell Rows": { equipment:['Barbell'], substitutes:['DB Rows','Cable Rows','T-Bar Rows'], description:"Bent over barbell row for back thickness.", formCues:["Flat back","Pull to lower chest","Squeeze top","Don't jerk up"], muscleGroups:['Back','Biceps'] },
-    "Deadball Side Slams + Burpees": { equipment:['Medicine Ball'], substitutes:['Ball Slams','Burpees'], description:"Dead ball side slams combined with burpees for conditioning.", formCues:["Explosive slams","Quick burpee","Alternate sides","Maintain pace"], muscleGroups:['Full Body','Core','Cardio'] },
-    "Machine Flys": { equipment:[], substitutes:['Cable Flys','DB Flys'], description:"Machine fly for chest isolation.", formCues:["Slight bend in elbows","Squeeze at center","Full stretch","Control return"], muscleGroups:['Chest'] },
-    "2 Cable Pullovers": { equipment:['Cable Machine'], substitutes:['DB Pullovers','Straight Arm Pulldowns'], description:"Cable pullover for lat and chest work.", formCues:["Slight bend in elbows","Full stretch overhead","Pull to hips","Control return"], muscleGroups:['Back','Chest'] },
-    "Dips": { equipment:['Dip Station'], substitutes:['Bench Dips','Tricep Pushdowns'], description:"Parallel bar dips for chest and tricep development.", formCues:["Lean forward for chest","Elbows to 90°","Full lockout","Control descent"], muscleGroups:['Chest','Triceps'] },
-    "Row Machine": { equipment:[], substitutes:['Cable Rows','DB Rows'], description:"Seated row machine for back development.", formCues:["Sit tall","Pull to chest","Squeeze back","Control return"], muscleGroups:['Back'] },
-    "Cable Shoulder Press": { equipment:['Cable Machine'], substitutes:['DB Shoulder Press','Machine Press'], description:"Cable shoulder press for constant tension.", formCues:["Core braced","Press overhead","Control down","Full lockout"], muscleGroups:['Shoulders'] },
-    "DB Incline Bench": { equipment:['Dumbbells','Bench'], substitutes:['Incline Barbell Press','Incline Machine'], description:"Incline dumbbell bench for upper chest.", formCues:["30-45° incline","Full stretch at bottom","Press up and in","Squeeze at top"], muscleGroups:['Chest','Shoulders'] },
-    "DB Curls": { equipment:['Dumbbells'], substitutes:['Barbell Curls','Cable Curls'], description:"Dumbbell bicep curls.", formCues:["Control movement","Full range","Don't swing","Squeeze at top"], muscleGroups:['Biceps'] },
-    "DB Chest Supported Rows": { equipment:['Dumbbells','Bench'], substitutes:['Barbell Rows','Cable Rows'], description:"Chest supported dumbbell rows eliminate momentum.", formCues:["Chest on bench","Pull to hips","Squeeze back","Control down"], muscleGroups:['Back'] },
-    "Barbell Bicep Curls": { equipment:['Barbell'], substitutes:['DB Curls','Cable Curls'], description:"Barbell curls for bicep mass.", formCues:["Elbows pinned","Full range","Don't swing","Squeeze at top"], muscleGroups:['Biceps'] },
-    "2 Handle Lat Pull-down": { equipment:['Cable Machine'], substitutes:['Pull Ups','Lat Pulldown Machine'], description:"Lat pulldown with individual handles.", formCues:["Full stretch","Pull wide to narrow","Squeeze lats","Control return"], muscleGroups:['Back','Biceps'] },
-    "Straight Bar Tricep Pushdown": { equipment:['Cable Machine'], substitutes:['Rope Pushdown','Dips'], description:"Straight bar tricep pushdown for tricep isolation.", formCues:["Elbows pinned","Full extension","Squeeze at bottom","Control up"], muscleGroups:['Triceps'] },
-    "Machine Row": { equipment:[], substitutes:['Cable Rows','DB Rows'], description:"Machine seated row for back development.", formCues:["Chest against pad","Pull to chest","Squeeze back","Full stretch"], muscleGroups:['Back'] },
-    "Tricep Press Machine": { equipment:[], substitutes:['Tricep Pushdowns','Dips'], description:"Machine tricep press for isolation.", formCues:["Elbows in","Full extension","Control return","Don't lock joints hard"], muscleGroups:['Triceps'] },
-    "DB Shoulder Press": { equipment:['Dumbbells'], substitutes:['Barbell Press','Machine Press'], description:"Dumbbell shoulder press.", formCues:["Core braced","Press to lockout","Control descent","Don't lean back"], muscleGroups:['Shoulders','Triceps'] },
-    "Lat Pull-down": { equipment:['Cable Machine'], substitutes:['Pull Ups','Band Pulldowns'], description:"Standard lat pulldown.", formCues:["Lean slightly back","Pull to upper chest","Squeeze lats","Full stretch"], muscleGroups:['Back','Biceps'] },
-    "Cable Curls": { equipment:['Cable Machine'], substitutes:['DB Curls','Barbell Curls'], description:"Cable curls for constant tension on biceps.", formCues:["Elbows pinned","Full range","Squeeze at top","Control down"], muscleGroups:['Biceps'] },
-
-    // Extra workouts
-    "Standing Barbell Shoulder Press": { equipment:['Barbell'], substitutes:['DB Shoulder Press','KB Press'], description:"Standing barbell overhead press.", formCues:["Core braced","Press overhead","Full lockout","Control down"], muscleGroups:['Shoulders','Triceps'] },
-    "Hack Squat": { equipment:[], substitutes:['Leg Press','V Squat'], description:"Hack squat machine for quad development.", formCues:["Feet shoulder width","Full depth","Drive through legs","Don't lock knees"], muscleGroups:['Legs','Quads'] },
-    "V Handle Tricep Pushdown": { equipment:['Cable Machine'], substitutes:['Straight Bar Pushdown','Dips'], description:"V-handle cable tricep pushdown.", formCues:["Elbows pinned","Full extension","Squeeze at bottom","Control up"], muscleGroups:['Triceps'] },
-    "Leg Press": { equipment:['Leg Press'], substitutes:['Hack Squat','Barbell Back Squat'], description:"Leg press machine for heavy leg training.", formCues:["Feet shoulder width","Full range","Don't lock knees","Control down"], muscleGroups:['Legs','Quads'] },
-    "SA DB Shoulder Press": { equipment:['Dumbbells'], substitutes:['Barbell Press','KB Press'], description:"Single arm dumbbell shoulder press.", formCues:["Core engaged","Press vertically","Control down","Don't lean"], muscleGroups:['Shoulders','Core'] },
-    "DB Tricep Extensions": { equipment:['Dumbbells'], substitutes:['Cable Pushdowns','Skull Crushers'], description:"Overhead dumbbell tricep extensions.", formCues:["Elbows close to head","Full stretch","Extend to lockout","Control down"], muscleGroups:['Triceps'] },
-    "Shoulder Press Machine": { equipment:[], substitutes:['DB Shoulder Press','Barbell Press'], description:"Machine shoulder press.", formCues:["Back against pad","Press to lockout","Control down","Don't flare elbows"], muscleGroups:['Shoulders'] },
-    "Lat Pulldown": { equipment:['Cable Machine'], substitutes:['Pull Ups','Band Pulldowns'], description:"Standard lat pulldown for back width.", formCues:["Full stretch","Pull to chest","Squeeze lats","Lean slightly back"], muscleGroups:['Back','Biceps'] },
-    "DB Lateral Raises Extra": { equipment:['Dumbbells'], substitutes:['Cable Lateral Raises','Band Raises'], description:"Dumbbell lateral raises.", formCues:["Slight lean","Lead with elbows","Don't swing","Control down"], muscleGroups:['Shoulders'] },
-    "Seated Row": { equipment:[], substitutes:['Cable Rows','DB Rows'], description:"Seated row machine.", formCues:["Sit tall","Pull to chest","Squeeze back","Full stretch"], muscleGroups:['Back'] },
-    "Seated Shoulder Press": { equipment:[], substitutes:['DB Press','Machine Press'], description:"Seated shoulder press.", formCues:["Back supported","Press overhead","Full lockout","Control descent"], muscleGroups:['Shoulders'] },
-    "Bent Over Row": { equipment:['Barbell'], substitutes:['DB Rows','Cable Rows'], description:"Bent over row for back thickness.", formCues:["Flat back","Pull to chest","Squeeze","Control down"], muscleGroups:['Back'] },
-    "DB Bicep Curls": { equipment:['Dumbbells'], substitutes:['Barbell Curls','Cable Curls'], description:"Dumbbell bicep curls.", formCues:["Full range","Don't swing","Squeeze at top","Control down"], muscleGroups:['Biceps'] },
-    "Romanian Deadlifts": { equipment:['Barbell'], substitutes:['DB RDLs','Single Leg RDLs'], description:"Hip hinge with slight knee bend. Hamstring focus.", formCues:["Slight knee bend","Hips back","Hamstring stretch","Bar close to legs"], muscleGroups:['Hamstrings','Glutes'] },
-    "Lifefitness Chest Press": { equipment:[], substitutes:['DB Bench','Barbell Bench'], description:"Life Fitness chest press machine.", formCues:["Chest up","Full range","Press to lockout","Control eccentric"], muscleGroups:['Chest','Triceps'] },
-    "Lifefitness Seated Row": { equipment:[], substitutes:['Cable Rows','DB Rows'], description:"Life Fitness seated row machine.", formCues:["Sit tall","Pull to chest","Squeeze back","Control return"], muscleGroups:['Back'] },
-    "Tricep Extensions": { equipment:['Cable Machine'], substitutes:['Dips','DB Tricep Extensions'], description:"Cable or machine tricep extensions.", formCues:["Elbows pinned","Full extension","Squeeze at bottom","Control up"], muscleGroups:['Triceps'] },
-};
-
-// ─── Workout Programs with 3 Variations ───
-const workoutPrograms = {
-    cleanpress: {
-        name: "Clean-Press Day",
-        icon: "🏋️",
-        color: "#6366f1",
-        variations: [
-            [
-                { name:"Barbell Deadlift-Clean-Press", sets:4, reps:"10-12", rest:60 },
-                { name:"KB Suitcase Squats", sets:4, reps:"10-12", rest:120 },
-                { name:"Battle Ropes", sets:4, reps:"30-60 sec", rest:60 },
-                { name:"Bulgarian Split Squats", sets:4, reps:"10-12", rest:60 },
-                { name:"Yoga Ball Planks", sets:4, reps:"30-60 sec", rest:60 },
-                { name:"Dead Ball Side-to-Side Slam", sets:4, reps:"30-60 sec", rest:60 },
-            ],
-            [
-                { name:"Barbell Deadlift-Clean-Press", sets:4, reps:"10-12", rest:60 },
-                { name:"Box Jumps", sets:4, reps:"10-15", rest:60 },
-                { name:"DB Walking Lunges", sets:4, reps:"10-12", rest:60 },
-                { name:"Chin Ups", sets:4, reps:"AMRAP", rest:60 },
-                { name:"Sled Rows", sets:4, reps:"10-12", rest:60 },
-                { name:"Renegade Rows", sets:4, reps:"30-60 sec", rest:60 },
-            ],
-            [
-                { name:"Barbell Deadlift-Clean-Press", sets:4, reps:"8-10", rest:60 },
-                { name:"Box Jumps", sets:4, reps:"10-15", rest:60 },
-                { name:"DB Bench Press", sets:4, reps:"10-12", rest:60 },
-                { name:"Tire Flips", sets:4, reps:"30-60 sec", rest:60 },
-                { name:"Ski Erg", sets:4, reps:"100-300m", rest:60 },
-                { name:"Push Ups", sets:4, reps:"10-15", rest:60 },
-            ],
-        ],
-        cardioFinisher: {
-            title: "Cardio Finisher",
-            options: [
-                { name:"Battle Ropes Tabata", description:"8 rounds: 20 sec work / 10 sec rest" },
-                { name:"Ski Erg Intervals", description:"4 rounds: 200m sprint, 1 min rest" },
-                { name:"Assault Bike Sprint", description:"10 min: 30 sec sprint / 30 sec easy" },
-            ]
-        }
-    },
-    squat: {
-        name: "Squat Day",
-        icon: "🦵",
-        color: "#8b5cf6",
-        variations: [
-            [
-                { name:"Hip Thruster Machine", sets:4, reps:"10-12", rest:120 },
-                { name:"Single Arm Lat Pulldown", sets:4, reps:"10-12", rest:60 },
-                { name:"Heel Elevated Goblet Squat", sets:4, reps:"10-15", rest:60 },
-                { name:"Pull Ups", sets:4, reps:"AMRAP", rest:60 },
-                { name:"Rower", sets:4, reps:"30-90 sec", rest:60 },
-                { name:"Sled Rows", sets:4, reps:"15-25", rest:60 },
-            ],
-            [
-                { name:"Barbell Back Squat", sets:4, reps:"6-8", rest:120 },
-                { name:"KB Bulgarian Split Squats", sets:4, reps:"10-12", rest:60 },
-                { name:"KB Standing Shoulder Press", sets:4, reps:"10-12", rest:60 },
-                { name:"Rower", sets:3, reps:"200m", rest:60 },
-                { name:"Battle Ropes", sets:3, reps:"30-60 sec", rest:60 },
-            ],
-            [
-                { name:"Heel Elevated Barbell Back Squat", sets:4, reps:"6-8", rest:120 },
-                { name:"Seated DB Shoulder Press", sets:4, reps:"10-12", rest:60 },
-                { name:"DB Bulgarian Split Squats", sets:4, reps:"10-12", rest:60 },
-                { name:"Rower", sets:3, reps:"200m", rest:60 },
-                { name:"Battle Ropes", sets:3, reps:"30-60 sec", rest:60 },
-            ],
-        ],
-        cardioFinisher: {
-            title: "Cardio Finisher",
-            options: [
-                { name:"Rower + Ropes Circuit", description:"3 rounds: 250m row, 30 sec ropes, 1 min rest" },
-                { name:"Push-Up + KB Walk Circuit", description:"3 rounds: 15 push-ups, 100m KB walk" },
-                { name:"Bodyweight Burnout", description:"50 air squats, 40 lunges, 30 jump squats, 20 burpees" },
-            ]
-        }
-    },
-    deadlift: {
-        name: "Deadlift Day",
-        icon: "💀",
-        color: "#ec4899",
-        variations: [
-            [
-                { name:"Hex Bar Deadlift", sets:4, reps:"8-10", rest:120 },
-                { name:"Battle Ropes", sets:4, reps:"30-60 sec", rest:60 },
-                { name:"Standing DB Shoulder Press", sets:4, reps:"10-12", rest:60 },
-                { name:"Box Jumps", sets:4, reps:"10-15", rest:60 },
-                { name:"KB Walking Lunges", sets:4, reps:"10-12", rest:60 },
-                { name:"Push Up/Dip Circuit", sets:4, reps:"30-60 sec", rest:60 },
-            ],
-            [
-                { name:"Hex Bar Deadlift", sets:4, reps:"8-10", rest:120 },
-                { name:"Over Shoulder Dead Ball Throws", sets:4, reps:"10-20", rest:60 },
-                { name:"KB Bulgarian Split Squats", sets:4, reps:"10-12", rest:60 },
-                { name:"Seated DB Shoulder Press", sets:4, reps:"10-12", rest:60 },
-                { name:"Walking Lunges Plate Overhead", sets:4, reps:"10-12", rest:60 },
-                { name:"DB Lateral Raises", sets:4, reps:"10-12", rest:60 },
-            ],
-            [
-                { name:"Hex Bar Deadlift", sets:4, reps:"6-8", rest:120 },
-                { name:"DB Flat Bench", sets:4, reps:"10-12", rest:60 },
-                { name:"Heel Elevated Goblet Squats", sets:4, reps:"10-12", rest:60 },
-                { name:"Ski Erg", sets:4, reps:"100-300m", rest:60 },
-                { name:"Battle Ropes", sets:4, reps:"30-60 sec", rest:60 },
-                { name:"Deadball Over-Shoulder Toss", sets:4, reps:"10-20", rest:60 },
-            ],
-        ],
-        cardioFinisher: {
-            title: "Cardio Finisher",
-            options: [
-                { name:"Sled Push + Pull", description:"4 rounds: push 40m, pull back, 1 min rest" },
-                { name:"Rower Pyramid", description:"100m, 200m, 300m, 200m, 100m — 1 min rest between" },
-                { name:"Battle Ropes EMOM", description:"10 min EMOM: 20 sec max effort ropes" },
-            ]
-        }
-    },
-    bench: {
-        name: "Bench/Back Day",
-        icon: "🏋️‍♂️",
-        color: "#f59e0b",
-        variations: [
-            [
-                { name:"Barbell Flat Bench", sets:4, reps:"8-12", rest:120 },
-                { name:"Pull Ups", sets:4, reps:"AMRAP", rest:60 },
-                { name:"Bulgarian Split Squats", sets:4, reps:"10-12", rest:60 },
-                { name:"Battle Ropes", sets:4, reps:"30-60 sec", rest:60 },
-                { name:"Ski Erg", sets:4, reps:"30-60 sec", rest:60 },
-                { name:"Deadball Side Slams + Burpees", sets:4, reps:"30-60 sec", rest:60 },
-            ],
-            [
-                { name:"Barbell Flat Bench", sets:4, reps:"8-12", rest:120 },
-                { name:"Pull Ups", sets:4, reps:"AMRAP", rest:60 },
-                { name:"Machine Flys", sets:4, reps:"12-15", rest:60 },
-                { name:"2 Cable Pullovers", sets:4, reps:"12-15", rest:60 },
-                { name:"Dips", sets:3, reps:"8-12", rest:60 },
-                { name:"Rower", sets:3, reps:"100-300m", rest:60 },
-            ],
-            [
-                { name:"Barbell Flat Bench", sets:4, reps:"6-10", rest:120 },
-                { name:"Pull Ups", sets:4, reps:"AMRAP", rest:60 },
-                { name:"DB Incline Bench", sets:4, reps:"8-12", rest:60 },
-                { name:"DB Chest Supported Rows", sets:4, reps:"10-12", rest:60 },
-                { name:"Straight Bar Tricep Pushdown", sets:4, reps:"10-12", rest:60 },
-                { name:"Rower", sets:3, reps:"100-300m", rest:60 },
-            ],
-        ],
-        cardioFinisher: {
-            title: "Cardio Finisher",
-            options: [
-                { name:"Ski Erg + Rower Relay", description:"4 rounds: 150m ski, 150m row, 1 min rest" },
-                { name:"Dips + Push-Up Ladder", description:"10-8-6-4-2 dips, 5-10-15-20-25 push-ups" },
-                { name:"5 Min AMRAP", description:"5 burpees, 10 push-ups, 15 air squats — max rounds" },
-            ]
-        }
-    },
-    extra: {
-        name: "Extra Day",
-        icon: "⚡",
-        color: "#10b981",
-        variations: [
-            [
-                { name:"Standing Barbell Shoulder Press", sets:4, reps:"8-10", rest:60 },
-                { name:"DB Curls", sets:4, reps:"10-12", rest:60 },
-                { name:"DB Bench Press", sets:4, reps:"10-12", rest:60 },
-                { name:"DB Lateral Raises", sets:4, reps:"10-12", rest:60 },
-                { name:"Machine Row", sets:3, reps:"10-12", rest:60 },
-                { name:"Tricep Extensions", sets:3, reps:"10-12", rest:60 },
-            ],
-            [
-                { name:"Leg Press", sets:4, reps:"10-12", rest:60 },
-                { name:"SA DB Shoulder Press", sets:4, reps:"8-10", rest:60 },
-                { name:"Lat Pulldown", sets:4, reps:"10-12", rest:60 },
-                { name:"DB Tricep Extensions", sets:4, reps:"10-12", rest:60 },
-                { name:"Shoulder Press Machine", sets:3, reps:"10-12", rest:60 },
-                { name:"Cable Curls", sets:3, reps:"10-12", rest:60 },
-            ],
-            [
-                { name:"Hack Squat", sets:3, reps:"10-12", rest:90 },
-                { name:"DB Bench Press", sets:3, reps:"10-12", rest:60 },
-                { name:"Bulgarian Split Squats", sets:3, reps:"10-12", rest:60 },
-                { name:"Lat Pulldown", sets:3, reps:"10-12", rest:60 },
-                { name:"V Handle Tricep Pushdown", sets:3, reps:"10-12", rest:60 },
-            ],
-        ],
-        cardioFinisher: {
-            title: "Cardio Finisher",
-            options: [
-                { name:"Countdown Chipper", description:"100 mountain climbers, 75 jump squats, 50 lunges, 25 tire flips, 10 burpees" },
-                { name:"4-Min Rounds", description:"4 rounds: 20 cal bike, 200m row, 10 burpees — rest between rounds" },
-                { name:"15-Min AMRAP Ladder", description:"Start at 4 reps: burpees, cal row, inchworms, v-ups — add 2 reps each round" },
-            ]
-        }
-    },
-};
-
-const allEquipment = ['Barbell','Dumbbells','Kettlebells','Cable Machine','Pull-up Bar','Bench','Squat Rack','Leg Press','Rowing Machine','Treadmill','Battle Ropes','Sled','Box/Platform','Medicine Ball','Resistance Bands','Dip Station','Hex Bar'];
-
-// ─── Components ───
-
-function RestTimer({ seconds, onComplete }) {
-    const [timeLeft, setTimeLeft] = useState(seconds);
-    useEffect(() => {
-        if (timeLeft<=0) { onComplete(); return; }
-        const t = setTimeout(()=>setTimeLeft(timeLeft-1),1000);
-        return ()=>clearTimeout(t);
-    }, [timeLeft]);
-    const pct = ((seconds-timeLeft)/seconds)*100;
-    return (
-        <div style={{position:'fixed',bottom:20,right:20,zIndex:1000,background:'#1a1a2e',border:'2px solid #6366f1',borderRadius:20,padding:'16px 24px',boxShadow:'0 8px 32px rgba(99,102,241,0.3)'}}>
-            <div style={{textAlign:'center'}}>
-                <div style={{fontSize:11,fontWeight:700,color:'#818cf8',letterSpacing:2,marginBottom:4}}>REST</div>
-                <div style={{fontSize:36,fontWeight:800,color:'#fff'}}>{timeLeft}s</div>
-                <div style={{width:'100%',height:3,background:'#333',borderRadius:2,marginTop:8}}>
-                    <div style={{width:pct+'%',height:'100%',background:'#6366f1',borderRadius:2,transition:'width 1s linear'}}/>
-                </div>
-            </div>
-        </div>
-    );
+function WorkoutTimer({startTime}){
+ const[e,setE]=useState(0);
+ useEffect(()=>{if(!startTime)return;const iv=setInterval(()=>setE(Math.floor((Date.now()-startTime)/1000)),1000);return()=>clearInterval(iv)},[startTime]);
+ if(!startTime)return null;
+ const m=Math.floor(e/60),s=e%60;
+ return React.createElement('div',{style:{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',borderRadius:12,padding:'10px 16px',textAlign:'center'}},
+  React.createElement('div',{style:{fontSize:10,fontWeight:700,letterSpacing:2,opacity:.8}},'WORKOUT TIME'),
+  React.createElement('div',{style:{fontSize:28,fontWeight:800}},m+':'+s.toString().padStart(2,'0'))
+ );
 }
 
-function WorkoutTimer({ startTime }) {
-    const [elapsed, setElapsed] = useState(0);
-    useEffect(() => {
-        if (!startTime) return;
-        const iv = setInterval(()=>setElapsed(Math.floor((Date.now()-startTime)/1000)),1000);
-        return ()=>clearInterval(iv);
-    }, [startTime]);
-    if (!startTime) return null;
-    const m=Math.floor(elapsed/60), s=elapsed%60;
-    return (
-        <div style={{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',borderRadius:12,padding:'10px 16px',textAlign:'center'}}>
-            <div style={{fontSize:10,fontWeight:700,letterSpacing:2,opacity:0.8}}>WORKOUT TIME</div>
-            <div style={{fontSize:28,fontWeight:800}}>{m}:{s.toString().padStart(2,'0')}</div>
-        </div>
-    );
+function SetTimerWidget({onClose}){
+ const[tm,setTm]=useState(1);const[ts,setTs]=useState(0);const[tl,setTl]=useState(null);const[run,setRun]=useState(false);
+ useEffect(()=>{if(!run||tl===null||tl<=0){if(tl===0)setRun(false);return}const t=setTimeout(()=>setTl(v=>v-1),1000);return()=>clearTimeout(t)},[run,tl]);
+ const start=()=>{const t=tm*60+ts;if(t>0){setTl(t);setRun(true)}};
+ const d=tl!==null?tl:tm*60+ts;const dm=Math.floor(d/60),ds=d%60;
+ return React.createElement('div',{style:{position:'fixed',bottom:80,right:16,zIndex:1001,background:'#1a1a2e',border:'2px solid #3b82f6',borderRadius:20,padding:20,boxShadow:'0 8px 32px rgba(59,130,246,0.3)',minWidth:220}},
+  React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
+   React.createElement('span',{style:{fontSize:11,fontWeight:700,color:'#60a5fa',letterSpacing:2}},'SET TIMER'),
+   React.createElement('button',{onClick:onClose,style:{background:'none',color:'#666',fontSize:20,minHeight:'auto',padding:4}},'\u2715')
+  ),
+  tl===null?React.createElement('div',null,
+   React.createElement('div',{style:{display:'flex',gap:8,alignItems:'center',justifyContent:'center',marginBottom:16}},
+    React.createElement('div',null,
+     React.createElement('div',{style:{fontSize:10,color:'#888',textAlign:'center',marginBottom:4}},'MIN'),
+     React.createElement('select',{value:tm,onChange:e=>setTm(+e.target.value),style:{background:'#111',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',fontSize:20,fontWeight:700,width:60,textAlign:'center'}},[0,1,2,3,4,5].map(n=>React.createElement('option',{key:n,value:n},n)))
+    ),
+    React.createElement('span',{style:{fontSize:24,fontWeight:700,color:'#fff',marginTop:16}},':'),
+    React.createElement('div',null,
+     React.createElement('div',{style:{fontSize:10,color:'#888',textAlign:'center',marginBottom:4}},'SEC'),
+     React.createElement('select',{value:ts,onChange:e=>setTs(+e.target.value),style:{background:'#111',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',fontSize:20,fontWeight:700,width:60,textAlign:'center'}},[0,10,15,20,30,45].map(n=>React.createElement('option',{key:n,value:n},n.toString().padStart(2,'0'))))
+    )
+   ),
+   React.createElement('button',{onClick:start,style:{width:'100%',background:'#3b82f6',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:14}},'Start')
+  ):React.createElement('div',{style:{textAlign:'center'}},
+   React.createElement('div',{style:{fontSize:48,fontWeight:800,color:tl===0?'#ef4444':'#fff',marginBottom:12}},dm+':'+ds.toString().padStart(2,'0')),
+   tl===0&&React.createElement('div',{style:{color:'#ef4444',fontWeight:700,marginBottom:12,fontSize:16}},'TIME!'),
+   React.createElement('div',{style:{display:'flex',gap:8}},
+    tl>0&&React.createElement('button',{onClick:()=>setRun(!run),style:{flex:1,background:run?'#f59e0b':'#22c55e',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},run?'Pause':'Resume'),
+    React.createElement('button',{onClick:()=>{setTl(null);setRun(false)},style:{flex:1,background:'#374151',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},'Reset')
+   )
+  )
+ );
 }
 
-function SetTimerWidget({ onClose }) {
-    const [targetMinutes, setTargetMinutes] = useState(1);
-    const [targetSeconds, setTargetSeconds] = useState(0);
-    const [timeLeft, setTimeLeft] = useState(null);
-    const [isRunning, setIsRunning] = useState(false);
-
-    useEffect(() => {
-        if (!isRunning || timeLeft === null || timeLeft <= 0) {
-            if (timeLeft === 0) { setIsRunning(false); }
-            return;
-        }
-        const t = setTimeout(()=>setTimeLeft(tl=>tl-1),1000);
-        return ()=>clearTimeout(t);
-    }, [isRunning, timeLeft]);
-
-    const startTimer = () => {
-        const total = targetMinutes*60 + targetSeconds;
-        if (total > 0) { setTimeLeft(total); setIsRunning(true); }
-    };
-
-    const displayTime = timeLeft !== null ? timeLeft : targetMinutes*60+targetSeconds;
-    const dm = Math.floor(displayTime/60), ds = displayTime%60;
-
-    return (
-        <div style={{position:'fixed',bottom:80,right:16,zIndex:1001,background:'#1a1a2e',border:'2px solid #3b82f6',borderRadius:20,padding:20,boxShadow:'0 8px 32px rgba(59,130,246,0.3)',minWidth:220}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                <span style={{fontSize:11,fontWeight:700,color:'#60a5fa',letterSpacing:2}}>SET TIMER</span>
-                <button onClick={onClose} style={{background:'none',color:'#666',fontSize:20,minHeight:'auto',padding:4}}>✕</button>
-            </div>
-            {timeLeft === null ? (
-                <div>
-                    <div style={{display:'flex',gap:8,alignItems:'center',justifyContent:'center',marginBottom:16}}>
-                        <div>
-                            <div style={{fontSize:10,color:'#888',textAlign:'center',marginBottom:4}}>MIN</div>
-                            <select value={targetMinutes} onChange={e=>setTargetMinutes(+e.target.value)} style={{background:'#111',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',fontSize:20,fontWeight:700,width:60,textAlign:'center'}}>
-                                {[0,1,2,3,4,5].map(n=><option key={n} value={n}>{n}</option>)}
-                            </select>
-                        </div>
-                        <span style={{fontSize:24,fontWeight:700,color:'#fff',marginTop:16}}>:</span>
-                        <div>
-                            <div style={{fontSize:10,color:'#888',textAlign:'center',marginBottom:4}}>SEC</div>
-                            <select value={targetSeconds} onChange={e=>setTargetSeconds(+e.target.value)} style={{background:'#111',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',fontSize:20,fontWeight:700,width:60,textAlign:'center'}}>
-                                {[0,10,15,20,30,45].map(n=><option key={n} value={n}>{n.toString().padStart(2,'0')}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                    <button onClick={startTimer} style={{width:'100%',background:'#3b82f6',color:'#fff',borderRadius:10,padding:'10px',fontWeight:700,fontSize:14}}>Start</button>
-                </div>
-            ) : (
-                <div style={{textAlign:'center'}}>
-                    <div style={{fontSize:48,fontWeight:800,color: timeLeft===0?'#ef4444':'#fff',marginBottom:12}}>{dm}:{ds.toString().padStart(2,'0')}</div>
-                    {timeLeft === 0 && <div style={{color:'#ef4444',fontWeight:700,marginBottom:12,fontSize:16}}>TIME!</div>}
-                    <div style={{display:'flex',gap:8}}>
-                        {timeLeft > 0 ? (
-                            <button onClick={()=>setIsRunning(!isRunning)} style={{flex:1,background:isRunning?'#f59e0b':'#22c55e',color:'#fff',borderRadius:10,padding:'10px',fontWeight:700,fontSize:13}}>
-                                {isRunning?'Pause':'Resume'}
-                            </button>
-                        ) : null}
-                        <button onClick={()=>{setTimeLeft(null);setIsRunning(false);}} style={{flex:1,background:'#374151',color:'#fff',borderRadius:10,padding:'10px',fontWeight:700,fontSize:13}}>Reset</button>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+function ExModal({name,prev,onClose}){
+ const d=EX[name];
+ return React.createElement('div',{onClick:onClose,style:{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},
+  React.createElement('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'90vh',overflowY:'auto'}},
+   React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:16}},
+    React.createElement('h2',{style:{fontSize:20,fontWeight:800}},name),
+    React.createElement('button',{onClick:onClose,style:{background:'none',color:'#666',fontSize:24,minHeight:'auto'}},'\u2715')
+   ),
+   d?React.createElement(React.Fragment,null,
+    React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:6,marginBottom:16}},d.mg.map(g=>React.createElement('span',{key:g,style:{background:'#6366f1',color:'#fff',padding:'4px 10px',borderRadius:20,fontSize:11,fontWeight:600}},g))),
+    React.createElement('p',{style:{color:'#ccc',marginBottom:16,lineHeight:1.6}},d.de),
+    prev&&prev.length>0&&React.createElement('div',{style:{background:'#111',borderRadius:12,padding:12,marginBottom:16}},
+     React.createElement('div',{style:{fontSize:11,fontWeight:700,color:'#60a5fa',letterSpacing:1,marginBottom:8}},'LAST TIME'),
+     React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},prev.filter(s=>s.weight&&s.reps).map((s,i)=>React.createElement('span',{key:i,style:{background:'#1e1e3a',padding:'4px 10px',borderRadius:8,fontSize:13,fontWeight:600}},s.weight+'lbs \u00d7 '+s.reps)))
+    ),
+    React.createElement('div',{style:{marginBottom:16}},
+     React.createElement('div',{style:{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}},'FORM CUES'),
+     d.cu.map((c,i)=>React.createElement('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,marginBottom:6}},React.createElement('span',{style:{color:'#22c55e',fontSize:14}},'\u2713'),React.createElement('span',{style:{color:'#ccc',fontSize:14}},c)))
+    ),
+    d.eq.length>0&&React.createElement('div',{style:{marginBottom:16}},
+     React.createElement('div',{style:{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}},'EQUIPMENT'),
+     React.createElement('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},d.eq.map(eq=>React.createElement('span',{key:eq,style:{background:'#1e1e3a',color:'#818cf8',padding:'4px 10px',borderRadius:20,fontSize:12,fontWeight:600}},eq)))
+    ),
+    d.su&&d.su.length>0&&React.createElement('div',{style:{marginBottom:16}},
+     React.createElement('div',{style:{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}},'SUBSTITUTES'),
+     React.createElement('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},d.su.map(s=>React.createElement('span',{key:s,style:{background:'#1e1e3a',color:'#888',padding:'4px 10px',borderRadius:20,fontSize:12}},s)))
+    )
+   ):React.createElement('p',{style:{color:'#888'}},'No additional info available.'),
+   React.createElement('button',{onClick:onClose,style:{width:'100%',background:'#6366f1',color:'#fff',borderRadius:12,padding:14,fontWeight:700,fontSize:15}},'Got it')
+  )
+ );
 }
 
-function ExerciseDetailModal({ exerciseName, previousData, onClose }) {
-    const data = exercises[exerciseName];
-    if (!data) return (
-        <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}}>
-            <div onClick={e=>e.stopPropagation()} style={{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%'}}>
-                <h2 style={{fontSize:20,fontWeight:800,marginBottom:8}}>{exerciseName}</h2>
-                <p style={{color:'#888'}}>No additional info available for this exercise.</p>
-                <button onClick={onClose} style={{width:'100%',background:'#6366f1',color:'#fff',borderRadius:12,padding:'14px',fontWeight:700,marginTop:16}}>Got it</button>
-            </div>
-        </div>
-    );
-    return (
-        <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}}>
-            <div onClick={e=>e.stopPropagation()} style={{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'90vh',overflowY:'auto'}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:16}}>
-                    <h2 style={{fontSize:20,fontWeight:800,color:'#e8e8e8'}}>{exerciseName}</h2>
-                    <button onClick={onClose} style={{background:'none',color:'#666',fontSize:24,minHeight:'auto'}}>✕</button>
-                </div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:16}}>
-                    {data.muscleGroups.map(g=><span key={g} style={{background:'#6366f1',color:'#fff',padding:'4px 10px',borderRadius:20,fontSize:11,fontWeight:600}}>{g}</span>)}
-                </div>
-                <p style={{color:'#ccc',marginBottom:16,lineHeight:1.6}}>{data.description}</p>
-                {previousData && previousData.length>0 && (
-                    <div style={{background:'#111',borderRadius:12,padding:12,marginBottom:16}}>
-                        <div style={{fontSize:11,fontWeight:700,color:'#60a5fa',letterSpacing:1,marginBottom:8}}>LAST TIME</div>
-                        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                            {previousData.filter(s=>s.weight&&s.reps).map((s,i)=><span key={i} style={{background:'#1e1e3a',padding:'4px 10px',borderRadius:8,fontSize:13,fontWeight:600}}>{s.weight}lbs × {s.reps}</span>)}
-                        </div>
-                    </div>
-                )}
-                <div style={{marginBottom:16}}>
-                    <div style={{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}}>FORM CUES</div>
-                    {data.formCues.map((c,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                        <span style={{color:'#22c55e',fontSize:14}}>✓</span>
-                        <span style={{color:'#ccc',fontSize:14}}>{c}</span>
-                    </div>)}
-                </div>
-                {data.equipment.length>0 && (
-                    <div style={{marginBottom:16}}>
-                        <div style={{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}}>EQUIPMENT</div>
-                        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-                            {data.equipment.map(eq=><span key={eq} style={{background:'#1e1e3a',color:'#818cf8',padding:'4px 10px',borderRadius:20,fontSize:12,fontWeight:600}}>{eq}</span>)}
-                        </div>
-                    </div>
-                )}
-                <button onClick={onClose} style={{width:'100%',background:'#6366f1',color:'#fff',borderRadius:12,padding:'14px',fontWeight:700,fontSize:15}}>Got it</button>
-            </div>
-        </div>
-    );
+function CardioSection({cf,sel,onSel,equip}){
+ const has=opt=>!opt.eq||opt.eq.length===0||opt.eq.every(e=>equip.includes(e));
+ return React.createElement('div',{style:{background:'#111',borderRadius:16,padding:20,marginBottom:16,border:'1px solid #222'}},
+  React.createElement('div',{style:{fontSize:12,fontWeight:700,color:'#f59e0b',letterSpacing:2,marginBottom:12}},'\u{1F525} '+cf.t.toUpperCase()),
+  React.createElement('div',{style:{fontSize:13,color:'#888',marginBottom:12}},'Pick one to finish strong:'),
+  React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+   cf.opts.map((opt,i)=>{const ok=has(opt);return React.createElement('button',{key:i,onClick:()=>ok&&onSel(i),style:{background:sel===i?'rgba(245,158,11,0.15)':'#1a1a2e',border:sel===i?'2px solid #f59e0b':'2px solid #222',borderRadius:12,padding:'12px 16px',textAlign:'left',opacity:ok?1:.4,cursor:ok?'pointer':'not-allowed'}},
+    React.createElement('div',{style:{fontWeight:700,fontSize:14,color:sel===i?'#f59e0b':'#e8e8e8',marginBottom:4}},opt.n),
+    React.createElement('div',{style:{fontSize:12,color:'#888'}},opt.d),
+    !ok&&React.createElement('div',{style:{fontSize:11,color:'#ef4444',marginTop:4}},'\u26A0\uFE0F Missing: '+opt.eq.filter(e=>!equip.includes(e)).join(', '))
+   )})
+  )
+ );
 }
 
-function CardioFinisherSection({ finisher, selected, onSelect, onLog }) {
-    return (
-        <div style={{background:'#111',borderRadius:16,padding:20,marginBottom:16,border:'1px solid #222'}}>
-            <div style={{fontSize:12,fontWeight:700,color:'#f59e0b',letterSpacing:2,marginBottom:12}}>🔥 {finisher.title.toUpperCase()}</div>
-            <div style={{fontSize:13,color:'#888',marginBottom:12}}>Pick one to finish strong:</div>
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                {finisher.options.map((opt,i) => (
-                    <button key={i} onClick={()=>onSelect(i)}
-                        style={{
-                            background: selected===i ? 'rgba(245,158,11,0.15)' : '#1a1a2e',
-                            border: selected===i ? '2px solid #f59e0b' : '2px solid #222',
-                            borderRadius:12, padding:'12px 16px', textAlign:'left', transition:'all 0.2s',
-                        }}>
-                        <div style={{fontWeight:700,fontSize:14,color: selected===i ? '#f59e0b' : '#e8e8e8',marginBottom:4}}>{opt.name}</div>
-                        <div style={{fontSize:12,color:'#888'}}>{opt.description}</div>
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
+function History({wk,onDel,onEdit,onClose}){
+ const[ei,setEi]=useState(null);const[ed,setEd]=useState(null);
+ const startE=(w,i)=>{setEi(i);setEd(JSON.parse(JSON.stringify(w)))};
+ const saveE=()=>{onEdit(ei,ed);setEi(null);setEd(null)};
+ const upS=(exi,si,f,v)=>{setEd(p=>{const u=JSON.parse(JSON.stringify(p));u.exercises[exi].sets[si][f]=v;return u})};
+ if(ei!==null&&ed)return React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},
+  React.createElement('div',{style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:600,width:'100%',maxHeight:'90vh',overflowY:'auto'}},
+   React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:16}},React.createElement('h2',{style:{fontSize:20,fontWeight:800}},'Edit Workout'),React.createElement('button',{onClick:()=>setEi(null),style:{background:'none',color:'#666',fontSize:24,minHeight:'auto'}},'\u2715')),
+   React.createElement('div',{style:{fontWeight:700,marginBottom:4}},ed.name),
+   React.createElement('div',{style:{fontSize:13,color:'#888',marginBottom:16}},new Date(ed.date).toLocaleDateString()),
+   React.createElement('textarea',{value:ed.notes||'',onChange:e=>setEd({...ed,notes:e.target.value}),placeholder:'Notes...',style:{width:'100%',background:'#111',color:'#e8e8e8',border:'1px solid #333',borderRadius:8,padding:10,marginBottom:12},rows:2}),
+   ed.exercises&&ed.exercises.map((ex,exi)=>React.createElement('div',{key:exi,style:{background:'#111',borderRadius:12,padding:12,marginBottom:8}},
+    React.createElement('div',{style:{fontWeight:700,fontSize:14,marginBottom:8}},ex.name),
+    ex.sets&&ex.sets.map((s,si)=>React.createElement('div',{key:si,style:{display:'grid',gridTemplateColumns:'auto 1fr 1fr',gap:8,marginBottom:4,alignItems:'center'}},
+     React.createElement('span',{style:{color:'#818cf8',fontWeight:700,fontSize:13,width:24}},'S'+(si+1)),
+     React.createElement('input',{type:'number',value:s.weight||'',onChange:e=>upS(exi,si,'weight',e.target.value),placeholder:'lbs',style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:6,padding:'6px 8px',textAlign:'center'}}),
+     React.createElement('input',{type:'number',value:s.reps||'',onChange:e=>upS(exi,si,'reps',e.target.value),placeholder:'reps',style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:6,padding:'6px 8px',textAlign:'center'}})
+    ))
+   )),
+   React.createElement('div',{style:{display:'flex',gap:8,marginTop:16}},
+    React.createElement('button',{onClick:()=>setEi(null),style:{flex:1,background:'#374151',color:'#fff',borderRadius:12,padding:14,fontWeight:700}},'Cancel'),
+    React.createElement('button',{onClick:saveE,style:{flex:1,background:'#22c55e',color:'#fff',borderRadius:12,padding:14,fontWeight:700}},'Save')
+   )
+  ));
+ return React.createElement('div',{onClick:onClose,style:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},
+  React.createElement('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:600,width:'100%',maxHeight:'90vh',overflowY:'auto'}},
+   React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:20}},React.createElement('h2',{style:{fontSize:22,fontWeight:800}},'Workout History'),React.createElement('button',{onClick:onClose,style:{background:'none',color:'#666',fontSize:24,minHeight:'auto'}},'\u2715')),
+   wk.length===0?React.createElement('p',{style:{textAlign:'center',color:'#666',padding:'40px 0'}},'No workouts yet!'):
+   wk.map((w,i)=>React.createElement('div',{key:i,style:{background:'#111',borderRadius:12,padding:16,marginBottom:8,border:'1px solid #1e1e1e'}},
+    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:8}},
+     React.createElement('div',null,
+      React.createElement('div',{style:{fontWeight:700,fontSize:15}},w.name),
+      React.createElement('div',{style:{fontSize:12,color:'#888',marginTop:2}},new Date(w.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})),
+      w.duration!=null&&React.createElement('div',{style:{fontSize:12,color:'#6366f1',marginTop:2}},'\u23F1 '+w.duration+' min')
+     ),
+     React.createElement('div',{style:{display:'flex',gap:6}},
+      React.createElement('button',{onClick:()=>startE(w,i),style:{background:'#1e1e3a',color:'#60a5fa',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:700}},'Edit'),
+      React.createElement('button',{onClick:()=>{if(confirm('Delete?'))onDel(i)},style:{background:'#1e1e1e',color:'#ef4444',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:700}},'Del')
+     )
+    ),
+    w.prs&&w.prs.length>0&&React.createElement('div',{style:{marginBottom:8}},w.prs.map((pr,pi)=>React.createElement('div',{key:pi,style:{background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:8,padding:'6px 10px',fontSize:12,fontWeight:700,color:'#f59e0b',marginBottom:4}},'\u{1F3C6} '+pr))),
+    w.exercises&&w.exercises.map((ex,exi)=>React.createElement('div',{key:exi,style:{fontSize:13,marginBottom:4}},React.createElement('span',{style:{fontWeight:600}},ex.name+': '),React.createElement('span',{style:{color:'#888'}},ex.sets.filter(s=>s.weight&&s.reps).map(s=>s.weight+'\u00d7'+s.reps).join(', ')))),
+    w.cardioFinisher&&React.createElement('div',{style:{fontSize:12,color:'#f59e0b',marginTop:4}},'\u{1F525} '+w.cardioFinisher),
+    w.notes&&React.createElement('div',{style:{fontSize:12,color:'#888',fontStyle:'italic',marginTop:4}},w.notes)
+   ))
+  ));
 }
 
-function WorkoutHistory({ workouts, onDelete, onEdit, onClose }) {
-    const [editIdx, setEditIdx] = useState(null);
-    const [editData, setEditData] = useState(null);
+function App(){
+ const[day,setDay]=useState(null);
+ const[vi,setVi]=useState(0);
+ const[equip,setEquip]=useState([]);
+ const[showEq,setShowEq]=useState(false);
+ const[hist,setHist]=useState([]);
+ const[showHist,setShowHist]=useState(false);
+ const[cw,setCw]=useState(null);
+ const[selEx,setSelEx]=useState(null);
+ const[notes,setNotes]=useState('');
+ const[st,setSt]=useState(null);
+ const[started,setStarted]=useState(false);
+ const[showTimer,setShowTimer]=useState(false);
+ const[swapped,setSwapped]=useState({});
+ const[selCardio,setSelCardio]=useState(null);
+ const[prs,setPrs]=useState([]);
 
-    const startEdit = (w,i) => { setEditIdx(i); setEditData(JSON.parse(JSON.stringify(w))); };
-    const saveEdit = () => { onEdit(editIdx, editData); setEditIdx(null); setEditData(null); };
-    const updateEditSet = (ei,si,field,val) => {
-        setEditData(p => { const u=JSON.parse(JSON.stringify(p)); u.exercises[ei].sets[si][field]=val; return u; });
-    };
+ useEffect(()=>{const e=ST.get('equipment');const h=ST.get('workoutHistory');if(e)setEquip(e);if(h)setHist(h)},[]);
+ const saveEq=()=>{ST.set('equipment',equip);setShowEq(false)};
+ const togEq=item=>setEquip(p=>p.includes(item)?p.filter(e=>e!==item):[...p,item]);
 
-    if (editIdx!==null && editData) {
-        return (
-            <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}}>
-                <div style={{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:600,width:'100%',maxHeight:'90vh',overflowY:'auto'}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-                        <h2 style={{fontSize:20,fontWeight:800}}>Edit Workout</h2>
-                        <button onClick={()=>setEditIdx(null)} style={{background:'none',color:'#666',fontSize:24,minHeight:'auto'}}>✕</button>
-                    </div>
-                    <div style={{fontWeight:700,fontSize:16,marginBottom:4}}>{editData.name}</div>
-                    <div style={{fontSize:13,color:'#888',marginBottom:16}}>{new Date(editData.date).toLocaleDateString()}</div>
-                    <div style={{marginBottom:16}}>
-                        <div style={{fontSize:12,fontWeight:600,color:'#888',marginBottom:4}}>Notes</div>
-                        <textarea value={editData.notes||''} onChange={e=>setEditData({...editData,notes:e.target.value})} style={{width:'100%',background:'#111',color:'#e8e8e8',border:'1px solid #333',borderRadius:8,padding:10}} rows="2"/>
-                    </div>
-                    {editData.exercises?.map((ex,ei)=>(
-                        <div key={ei} style={{background:'#111',borderRadius:12,padding:12,marginBottom:8}}>
-                            <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>{ex.name}</div>
-                            {ex.sets?.map((s,si)=>(
-                                <div key={si} style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr',gap:8,marginBottom:4,alignItems:'center'}}>
-                                    <span style={{color:'#818cf8',fontWeight:700,fontSize:13}}>S{si+1}</span>
-                                    <input type="number" value={s.weight||''} onChange={e=>updateEditSet(ei,si,'weight',e.target.value)} placeholder="lbs" style={{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:6,padding:'6px 8px',textAlign:'center'}}/>
-                                    <input type="number" value={s.reps||''} onChange={e=>updateEditSet(ei,si,'reps',e.target.value)} placeholder="reps" style={{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:6,padding:'6px 8px',textAlign:'center'}}/>
-                                </div>
-                            ))}
-                        </div>
-                    ))}
-                    <div style={{display:'flex',gap:8,marginTop:16}}>
-                        <button onClick={()=>setEditIdx(null)} style={{flex:1,background:'#374151',color:'#fff',borderRadius:12,padding:'14px',fontWeight:700}}>Cancel</button>
-                        <button onClick={saveEdit} style={{flex:1,background:'#22c55e',color:'#fff',borderRadius:12,padding:'14px',fontWeight:700}}>Save</button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+ const selDay=dk=>{setDay(dk);setVi(0);setStarted(false);setSt(null);setSwapped({});setSelCardio(null);setNotes('');initW(dk,0)};
+ const initW=(dk,v)=>{const exs=WP[dk].variations[v].map(ex=>({...ex,name:ex.n,sets:Array(ex.s).fill(null).map(()=>({weight:'',reps:'',completed:false}))}));setCw({exercises:exs})};
+ const chgVar=v=>{setVi(v);setSwapped({});initW(day,v)};
+ const startW=()=>{setStarted(true);setSt(Date.now())};
 
-    return (
-        <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}}>
-            <div onClick={e=>e.stopPropagation()} style={{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:600,width:'100%',maxHeight:'90vh',overflowY:'auto'}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-                    <h2 style={{fontSize:22,fontWeight:800}}>Workout History</h2>
-                    <button onClick={onClose} style={{background:'none',color:'#666',fontSize:24,minHeight:'auto'}}>✕</button>
-                </div>
-                {workouts.length===0 ? <p style={{textAlign:'center',color:'#666',padding:'40px 0'}}>No workouts yet!</p> :
-                    workouts.map((w,i)=>(
-                        <div key={i} style={{background:'#111',borderRadius:12,padding:16,marginBottom:8,border:'1px solid #1e1e1e'}}>
-                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:8}}>
-                                <div>
-                                    <div style={{fontWeight:700,fontSize:15}}>{w.name}</div>
-                                    <div style={{fontSize:12,color:'#888',marginTop:2}}>{new Date(w.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</div>
-                                    {w.duration!=null && <div style={{fontSize:12,color:'#6366f1',marginTop:2}}>{w.duration} min</div>}
-                                </div>
-                                <div style={{display:'flex',gap:6}}>
-                                    <button onClick={()=>startEdit(w,i)} style={{background:'#1e1e3a',color:'#60a5fa',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:700}}>Edit</button>
-                                    <button onClick={()=>{if(confirm('Delete?')){onDelete(i)}}} style={{background:'#1e1e1e',color:'#ef4444',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:700}}>Del</button>
-                                </div>
-                            </div>
-                            {w.exercises && w.exercises.map((ex,ei)=>(
-                                <div key={ei} style={{fontSize:13,marginBottom:4}}>
-                                    <span style={{fontWeight:600}}>{ex.name}: </span>
-                                    <span style={{color:'#888'}}>{ex.sets.filter(s=>s.weight&&s.reps).map(s=>`${s.weight}×${s.reps}`).join(', ')}</span>
-                                </div>
-                            ))}
-                            {w.cardioFinisher && <div style={{fontSize:12,color:'#f59e0b',marginTop:4}}>🔥 {w.cardioFinisher}</div>}
-                            {w.notes && <div style={{fontSize:12,color:'#888',fontStyle:'italic',marginTop:4}}>{w.notes}</div>}
-                        </div>
-                    ))
-                }
-            </div>
-        </div>
-    );
+ const upSet=(ei,si,f,v)=>{setCw(p=>{const u=JSON.parse(JSON.stringify(p));u.exercises[ei].sets[si][f]=v;return u})};
+ const togSet=(ei,si)=>{setCw(p=>{const u=JSON.parse(JSON.stringify(p));u.exercises[ei].sets[si].completed=!u.exercises[ei].sets[si].completed;return u})};
+
+ const chkEq=name=>{const d=EX[name];if(!d||!d.eq||d.eq.length===0)return{ok:true,miss:[]};const miss=d.eq.filter(e=>!equip.includes(e));return{ok:miss.length===0,miss}};
+
+ // Swap chains through CURRENT exercise's substitutes so you can keep swapping
+ const swapEx=exIdx=>{
+  const curName=swapped[exIdx]||WP[day].variations[vi][exIdx].n;
+  const d=EX[curName];if(!d||!d.su||d.su.length===0)return;
+  const origName=WP[day].variations[vi][exIdx].n;
+  const opts=[...d.su,origName].filter(n=>n!==curName);
+  const next=opts[0]||origName;
+  setSwapped(p=>({...p,[exIdx]:next}));
+  setCw(p=>{const u=JSON.parse(JSON.stringify(p));const oe=WP[day].variations[vi][exIdx];u.exercises[exIdx]={name:next,n:next,sets:Array(oe.s).fill(null).map(()=>({weight:'',reps:'',completed:false})),s:oe.s,r:oe.r,re:oe.re};return u});
+ };
+
+ const getPrev=name=>{for(let w of hist){const ex=w.exercises&&w.exercises.find(e=>e.name===name);if(ex&&ex.sets)return ex.sets}return null};
+ const bestVol=name=>{let b=0;for(let w of hist){const ex=w.exercises&&w.exercises.find(e=>e.name===name);if(ex&&ex.sets){const v=ex.sets.reduce((s,x)=>s+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0);if(v>b)b=v}}return b};
+ const bestWt=name=>{let b=0;for(let w of hist){const ex=w.exercises&&w.exercises.find(e=>e.name===name);if(ex&&ex.sets)for(let s of ex.sets){const w2=parseFloat(s.weight)||0;if(w2>b)b=w2}}return b};
+
+ const complete=()=>{
+  if(!cw||!day)return;
+  const dur=st?Math.round((Date.now()-st)/60000):null;
+  const prog=WP[day];const newPR=[];
+  for(let ex of cw.exercises){
+   const pv=bestVol(ex.name);const pw=bestWt(ex.name);
+   const cv=ex.sets.reduce((s,x)=>s+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0);
+   const cw2=Math.max(...ex.sets.map(s=>parseFloat(s.weight)||0));
+   if(cv>pv&&pv>0)newPR.push(ex.name+' \u2014 new volume record!');
+   else if(cw2>pw&&pw>0)newPR.push(ex.name+' \u2014 new weight PR: '+cw2+'lbs!');
+  }
+  const wo={date:new Date().toISOString(),name:prog.name+' (V'+(vi+1)+')',exercises:cw.exercises.map(ex=>({name:ex.name,sets:ex.sets})),duration:dur,notes:notes,cardioFinisher:selCardio!==null?prog.cf.opts[selCardio].n:null,prs:newPR.length>0?newPR:null};
+  const nh=[wo,...hist];setHist(nh);ST.set('workoutHistory',nh);
+  if(newPR.length>0){setPrs(newPR);setTimeout(()=>setPrs([]),4500)}
+  setDay(null);setCw(null);setNotes('');setSt(null);setStarted(false);setSwapped({});setSelCardio(null);
+ };
+
+ const delW=i=>{const nh=hist.filter((_,j)=>j!==i);setHist(nh);ST.set('workoutHistory',nh)};
+ const editW=(i,d)=>{const nh=[...hist];nh[i]=d;setHist(nh);ST.set('workoutHistory',nh)};
+
+ const h=React.createElement;
+
+ if(!day){
+  return h('div',{style:{minHeight:'100vh',background:'#0a0a0a',padding:16}},
+   h('div',{style:{maxWidth:600,margin:'0 auto'}},
+    prs.map((m,i)=>h('div',{key:i,className:'pr-banner'},'\u{1F3C6} NEW PR! '+m)),
+    h('div',{style:{textAlign:'center',padding:'32px 0 24px'}},h('h1',{style:{fontSize:28,fontWeight:800}},'Workout Tracker'),h('p',{style:{color:'#666',fontSize:13,marginTop:4}},'Train hard. Track everything.')),
+    h('div',{style:{display:'flex',gap:8,marginBottom:20}},
+     h('button',{onClick:()=>setShowEq(true),style:{flex:1,background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:14,fontWeight:700,fontSize:14}},'\u2699\uFE0F Equipment'),
+     h('button',{onClick:()=>setShowHist(true),style:{flex:1,background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:14,fontWeight:700,fontSize:14}},'\u{1F4CA} History')
+    ),
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:24}},
+     h('div',{style:{background:'linear-gradient(135deg,#6366f1,#4f46e5)',borderRadius:14,padding:16,textAlign:'center'}},h('div',{style:{fontSize:28,fontWeight:800}},hist.length),h('div',{style:{fontSize:11,opacity:.8,fontWeight:600}},'Total')),
+     h('div',{style:{background:'linear-gradient(135deg,#8b5cf6,#7c3aed)',borderRadius:14,padding:16,textAlign:'center'}},h('div',{style:{fontSize:28,fontWeight:800}},hist.filter(w=>{const d=new Date();d.setDate(d.getDate()-7);return new Date(w.date)>d}).length),h('div',{style:{fontSize:11,opacity:.8,fontWeight:600}},'This Week')),
+     h('div',{style:{background:'linear-gradient(135deg,#ec4899,#db2777)',borderRadius:14,padding:16,textAlign:'center'}},h('div',{style:{fontSize:28,fontWeight:800}},equip.length),h('div',{style:{fontSize:11,opacity:.8,fontWeight:600}},'Equipment'))
+    ),
+    h('div',{style:{marginBottom:24}},
+     h('h2',{style:{fontSize:16,fontWeight:700,marginBottom:12,color:'#888'}},'START WORKOUT'),
+     h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
+      Object.entries(WP).map(([k,p])=>h('button',{key:k,onClick:()=>selDay(k),style:{background:'#111',border:'1px solid #222',borderRadius:16,padding:'20px 16px',textAlign:'left',gridColumn:k==='extra'?'1/3':undefined}},
+       h('div',{style:{fontSize:24,marginBottom:6}},p.icon),h('div',{style:{fontWeight:700,fontSize:15}},p.name),h('div',{style:{fontSize:11,color:'#666',marginTop:2}},p.variations.length+' variations')
+      ))
+     )
+    ),
+    showEq&&h('div',{onClick:()=>setShowEq(false),style:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},
+     h('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'80vh',overflowY:'auto'}},
+      h('h2',{style:{fontSize:20,fontWeight:800,marginBottom:16}},'My Equipment'),
+      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:16}},
+       allEquipment.map(item=>h('label',{key:item,style:{display:'flex',alignItems:'center',padding:'10px 12px',background:equip.includes(item)?'rgba(99,102,241,.15)':'#111',border:equip.includes(item)?'1px solid #6366f1':'1px solid #222',borderRadius:10,cursor:'pointer'}},
+        h('input',{type:'checkbox',checked:equip.includes(item),onChange:()=>togEq(item),style:{marginRight:8}}),h('span',{style:{fontSize:13,fontWeight:500}},item)
+       ))
+      ),
+      h('button',{onClick:saveEq,style:{width:'100%',background:'#22c55e',color:'#fff',borderRadius:12,padding:14,fontWeight:700,fontSize:15}},'Save Equipment')
+     )
+    ),
+    showHist&&h(History,{wk:hist,onDel:delW,onEdit:editW,onClose:()=>setShowHist(false)})
+   )
+  );
+ }
+
+ const prog=WP[day];const vari=prog.variations[vi];
+ return h('div',{style:{minHeight:'100vh',background:'#0a0a0a',padding:16,paddingBottom:100}},
+  h('div',{style:{maxWidth:600,margin:'0 auto'}},
+   prs.map((m,i)=>h('div',{key:i,className:'pr-banner'},'\u{1F3C6} NEW PR! '+m)),
+   h('button',{onClick:()=>{if(confirm('Exit? Progress lost.')){setDay(null);setCw(null);setStarted(false);setSt(null)}},style:{background:'none',color:'#888',fontSize:15,fontWeight:600,marginBottom:12,padding:'8px 0'}},'\u2190 Back'),
+   selEx&&h(ExModal,{name:selEx,prev:getPrev(selEx),onClose:()=>setSelEx(null)}),
+   showTimer&&h(SetTimerWidget,{onClose:()=>setShowTimer(false)}),
+   h('div',{style:{background:'#111',borderRadius:20,padding:20,border:'1px solid #1e1e1e'}},
+    h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
+     h('h2',{style:{fontSize:20,fontWeight:800}},prog.icon+' '+prog.name),
+     h('button',{onClick:()=>setShowTimer(!showTimer),style:{background:'#1e1e3a',color:'#60a5fa',padding:'8px 14px',borderRadius:10,fontWeight:700,fontSize:12}},'\u23F1 Timer')
+    ),
+    h('div',{style:{display:'flex',gap:6,marginBottom:16}},prog.variations.map((_,v)=>h('button',{key:v,onClick:()=>chgVar(v),style:{flex:1,background:v===vi?prog.color:'#1a1a2e',color:v===vi?'#fff':'#888',borderRadius:8,padding:8,fontWeight:700,fontSize:13,border:v===vi?'none':'1px solid #333'}},'V'+(v+1)))),
+    !started?h('button',{onClick:startW,style:{width:'100%',background:'linear-gradient(135deg,#22c55e,#16a34a)',color:'#fff',borderRadius:12,padding:16,fontWeight:800,fontSize:16,marginBottom:16}},'\u25B6 Start Workout'):h('div',{style:{marginBottom:16}},h(WorkoutTimer,{startTime:st})),
+    cw&&cw.exercises.map((ex,ei)=>{
+     const pe=vari[ei];const dn=swapped[ei]||ex.name;const dd=EX[dn];const prev=getPrev(dn);const eq=chkEq(dn);const canSwap=dd&&dd.su&&dd.su.length>0;
+     return h('div',{key:ei+'-'+dn,style:{background:'#0a0a0a',borderRadius:14,padding:16,marginBottom:10,border:'1px solid #1e1e1e'}},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:10}},
+       h('div',{style:{flex:1,minWidth:0}},
+        h('h3',{style:{fontSize:15,fontWeight:700,wordBreak:'break-word'}},dn),
+        !eq.ok&&h('div',{style:{fontSize:11,color:'#f59e0b',marginTop:2}},'\u26A0\uFE0F Missing: '+eq.miss.join(', ')),
+        prev&&h('div',{style:{fontSize:11,color:'#818cf8',marginTop:2}},'Last: '+prev.filter(s=>s.weight&&s.reps).map(s=>s.weight+'\u00d7'+s.reps).join(', '))
+       ),
+       h('div',{style:{display:'flex',gap:4,marginLeft:8,flexShrink:0}},
+        canSwap&&h('button',{onClick:()=>swapEx(ei),style:{background:!eq.ok?'#f59e0b':'#1e1e3a',color:!eq.ok?'#000':'#f59e0b',padding:'6px 10px',borderRadius:8,fontSize:11,fontWeight:700}},'Swap'),
+        h('button',{onClick:()=>setSelEx(dn),style:{background:'#1e1e3a',color:'#818cf8',padding:'6px 10px',borderRadius:8,fontSize:11,fontWeight:700}},'Info')
+       )
+      ),
+      h('div',{style:{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}},
+       h('span',{style:{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}},'Sets: '+pe.s),
+       h('span',{style:{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}},'Reps: '+pe.r),
+       h('span',{style:{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}},'Rest: '+pe.re+'s')
+      ),
+      ex.sets.map((set,si)=>h('div',{key:si,style:{display:'grid',gridTemplateColumns:'22px 1fr 1fr 40px',gap:4,marginBottom:4,alignItems:'center'}},
+       h('span',{style:{color:'#6366f1',fontWeight:800,fontSize:13,textAlign:'center'}},si+1),
+       h('input',{type:'number',placeholder:'lbs',value:set.weight,onChange:e=>upSet(ei,si,'weight',e.target.value),style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'10px 4px',textAlign:'center',fontSize:14,minWidth:0}}),
+       h('input',{type:'number',placeholder:'reps',value:set.reps,onChange:e=>upSet(ei,si,'reps',e.target.value),style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'10px 4px',textAlign:'center',fontSize:14,minWidth:0}}),
+       h('button',{onClick:()=>togSet(ei,si),style:{background:set.completed?'#22c55e':'#1a1a2e',color:set.completed?'#fff':'#555',borderRadius:8,fontWeight:800,fontSize:16,border:set.completed?'none':'1px solid #333',padding:'8px 0',minHeight:40,minWidth:0}},'\u2713')
+      ))
+     );
+    }),
+    h(CardioSection,{cf:prog.cf,sel:selCardio,onSel:setSelCardio,equip:equip}),
+    h('div',{style:{marginBottom:16}},
+     h('div',{style:{fontSize:12,fontWeight:600,color:'#888',marginBottom:6}},'Workout Notes'),
+     h('textarea',{value:notes,onChange:e=>setNotes(e.target.value),placeholder:'How did it feel?',style:{width:'100%',background:'#0a0a0a',color:'#e8e8e8',border:'1px solid #222',borderRadius:10,padding:12,fontSize:14},rows:3})
+    ),
+    h('button',{onClick:complete,style:{width:'100%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',borderRadius:14,padding:16,fontWeight:800,fontSize:16}},'Complete Workout')
+   )
+  )
+ );
 }
 
-function PRBanner({ message }) {
-    return <div className="pr-banner">🏆 NEW PR! {message}</div>;
-}
-
-// ─── Main App ───
-function App() {
-    const [currentDay, setCurrentDay] = useState(null);
-    const [selectedVariation, setSelectedVariation] = useState(0);
-    const [userEquipment, setUserEquipment] = useState([]);
-    const [showEquipment, setShowEquipment] = useState(false);
-    const [workoutHistory, setWorkoutHistory] = useState([]);
-    const [showHistory, setShowHistory] = useState(false);
-    const [currentWorkout, setCurrentWorkout] = useState(null);
-    const [selectedExercise, setSelectedExercise] = useState(null);
-    const [restTimer, setRestTimer] = useState(null);
-    const [workoutNotes, setWorkoutNotes] = useState('');
-    const [startTime, setStartTime] = useState(null);
-    const [workoutStarted, setWorkoutStarted] = useState(false);
-    const [showSetTimer, setShowSetTimer] = useState(false);
-    const [swappedExercises, setSwappedExercises] = useState({});
-    const [selectedCardio, setSelectedCardio] = useState(null);
-    const [prMessages, setPrMessages] = useState([]);
-
-    useEffect(() => {
-        const eq = storage.get('equipment');
-        const hist = storage.get('workoutHistory');
-        if (eq) setUserEquipment(eq);
-        if (hist) setWorkoutHistory(hist);
-    }, []);
-
-    const saveEquipment = () => {
-        storage.set('equipment', userEquipment);
-        setShowEquipment(false);
-    };
-
-    const toggleEquipment = (item) => {
-        setUserEquipment(prev=>prev.includes(item)?prev.filter(e=>e!==item):[...prev,item]);
-    };
-
-    const selectDay = (dayKey) => {
-        setCurrentDay(dayKey);
-        setSelectedVariation(0);
-        setWorkoutStarted(false);
-        setStartTime(null);
-        setSwappedExercises({});
-        setSelectedCardio(null);
-        setWorkoutNotes('');
-        initWorkout(dayKey, 0);
-    };
-
-    const initWorkout = (dayKey, varIdx) => {
-        const prog = workoutPrograms[dayKey];
-        const exs = prog.variations[varIdx].map(ex => ({
-            ...ex,
-            sets: Array(ex.sets).fill(null).map(()=>({weight:'',reps:'',completed:false}))
-        }));
-        setCurrentWorkout({ exercises: exs });
-    };
-
-    const changeVariation = (varIdx) => {
-        setSelectedVariation(varIdx);
-        setSwappedExercises({});
-        initWorkout(currentDay, varIdx);
-    };
-
-    const startWorkoutTimer = () => {
-        setWorkoutStarted(true);
-        setStartTime(Date.now());
-    };
-
-    const updateSet = (ei,si,field,val) => {
-        setCurrentWorkout(prev => {
-            const u = JSON.parse(JSON.stringify(prev));
-            u.exercises[ei].sets[si][field] = val;
-            return u;
-        });
-    };
-
-    const toggleSetComplete = (ei,si,restTime) => {
-        setCurrentWorkout(prev => {
-            const u = JSON.parse(JSON.stringify(prev));
-            u.exercises[ei].sets[si].completed = !u.exercises[ei].sets[si].completed;
-            if (u.exercises[ei].sets[si].completed && restTime) setRestTimer(restTime);
-            return u;
-        });
-    };
-
-    const checkEquipment = (name) => {
-        const d = exercises[name];
-        if (!d || !d.equipment || d.equipment.length===0) return {hasEquipment:true,missing:[]};
-        const missing = d.equipment.filter(eq=>!userEquipment.includes(eq));
-        return {hasEquipment:missing.length===0, missing};
-    };
-
-    const swapExercise = (originalName, exIdx) => {
-        const orig = exercises[originalName];
-        if (!orig?.substitutes?.length) return;
-        const currentSwapName = swappedExercises[exIdx] || originalName;
-        const allOpts = [originalName, ...orig.substitutes];
-        const curI = allOpts.indexOf(currentSwapName);
-        const nextI = (curI+1) % allOpts.length;
-        const nextName = allOpts[nextI];
-        setSwappedExercises(prev=>({...prev,[exIdx]:nextName}));
-        setCurrentWorkout(prev => {
-            const u = JSON.parse(JSON.stringify(prev));
-            const origEx = workoutPrograms[currentDay].variations[selectedVariation][exIdx];
-            u.exercises[exIdx] = { name:nextName, sets:Array(origEx.sets).fill(null).map(()=>({weight:'',reps:'',completed:false})), reps:origEx.reps, rest:origEx.rest };
-            return u;
-        });
-    };
-
-    const getPreviousExerciseData = (name) => {
-        for (let w of workoutHistory) {
-            const ex = w.exercises?.find(e=>e.name===name);
-            if (ex && ex.sets) return ex.sets;
-        }
-        return null;
-    };
-
-    const getExerciseBestVolume = (name) => {
-        let best = 0;
-        for (let w of workoutHistory) {
-            const ex = w.exercises?.find(e=>e.name===name);
-            if (ex && ex.sets) {
-                const vol = ex.sets.reduce((sum,s) => sum + (parseFloat(s.weight)||0)*(parseInt(s.reps)||0), 0);
-                if (vol > best) best = vol;
-            }
-        }
-        return best;
-    };
-
-    const getExerciseBestWeight = (name) => {
-        let best = 0;
-        for (let w of workoutHistory) {
-            const ex = w.exercises?.find(e=>e.name===name);
-            if (ex && ex.sets) {
-                for (let s of ex.sets) {
-                    const wt = parseFloat(s.weight)||0;
-                    if (wt > best) best = wt;
-                }
-            }
-        }
-        return best;
-    };
-
-    const completeWorkout = () => {
-        if (!currentWorkout || !currentDay) return;
-        const duration = startTime ? Math.round((Date.now()-startTime)/60000) : null;
-        const prog = workoutPrograms[currentDay];
-
-        // Check for PRs
-        const newPRs = [];
-        for (let ex of currentWorkout.exercises) {
-            const prevBestVol = getExerciseBestVolume(ex.name);
-            const prevBestWt = getExerciseBestWeight(ex.name);
-            const curVol = ex.sets.reduce((sum,s)=>sum+(parseFloat(s.weight)||0)*(parseInt(s.reps)||0),0);
-            const curBestWt = Math.max(...ex.sets.map(s=>parseFloat(s.weight)||0));
-            if (curVol > prevBestVol && prevBestVol > 0) newPRs.push(`${ex.name} — new volume record!`);
-            else if (curBestWt > prevBestWt && prevBestWt > 0) newPRs.push(`${ex.name} — new weight PR: ${curBestWt}lbs!`);
-        }
-
-        const workout = {
-            date: new Date().toISOString(),
-            name: prog.name + ` (V${selectedVariation+1})`,
-            exercises: currentWorkout.exercises.map(ex=>({name:ex.name, sets:ex.sets})),
-            duration,
-            notes: workoutNotes,
-            cardioFinisher: selectedCardio !== null ? prog.cardioFinisher.options[selectedCardio].name : null,
-        };
-
-        const newHistory = [workout, ...workoutHistory];
-        setWorkoutHistory(newHistory);
-        storage.set('workoutHistory', newHistory);
-
-        if (newPRs.length > 0) {
-            setPrMessages(newPRs);
-            setTimeout(()=>setPrMessages([]), 4500);
-        }
-
-        setCurrentDay(null);
-        setCurrentWorkout(null);
-        setWorkoutNotes('');
-        setStartTime(null);
-        setWorkoutStarted(false);
-        setSwappedExercises({});
-        setSelectedCardio(null);
-    };
-
-    const deleteWorkout = (idx) => {
-        const nh = workoutHistory.filter((_,i)=>i!==idx);
-        setWorkoutHistory(nh);
-        storage.set('workoutHistory',nh);
-    };
-    const editWorkout = (idx,data) => {
-        const nh=[...workoutHistory]; nh[idx]=data;
-        setWorkoutHistory(nh);
-        storage.set('workoutHistory',nh);
-    };
-
-    // ─── MAIN MENU ───
-    if (!currentDay) {
-        return (
-            <div style={{minHeight:'100vh',background:'#0a0a0a',padding:16}}>
-                <div style={{maxWidth:600,margin:'0 auto'}}>
-                    {prMessages.map((msg,i) => <PRBanner key={i} message={msg}/>)}
-
-                    <div style={{textAlign:'center',padding:'32px 0 24px'}}>
-                        <h1 style={{fontSize:28,fontWeight:800,letterSpacing:'-0.5px'}}>Workout Tracker</h1>
-                        <p style={{color:'#666',fontSize:13,marginTop:4}}>Train hard. Track everything.</p>
-                    </div>
-
-                    <div style={{display:'flex',gap:8,marginBottom:20}}>
-                        <button onClick={()=>setShowEquipment(true)} style={{flex:1,background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:'14px',fontWeight:700,fontSize:14}}>⚙️ Equipment</button>
-                        <button onClick={()=>setShowHistory(true)} style={{flex:1,background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:'14px',fontWeight:700,fontSize:14}}>📊 History</button>
-                    </div>
-
-                    {/* Quick Stats */}
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:24}}>
-                        <div style={{background:'linear-gradient(135deg,#6366f1,#4f46e5)',borderRadius:14,padding:16,textAlign:'center'}}>
-                            <div style={{fontSize:28,fontWeight:800}}>{workoutHistory.length}</div>
-                            <div style={{fontSize:11,opacity:0.8,fontWeight:600}}>Total</div>
-                        </div>
-                        <div style={{background:'linear-gradient(135deg,#8b5cf6,#7c3aed)',borderRadius:14,padding:16,textAlign:'center'}}>
-                            <div style={{fontSize:28,fontWeight:800}}>{workoutHistory.filter(w=>{const d=new Date();d.setDate(d.getDate()-7);return new Date(w.date)>d}).length}</div>
-                            <div style={{fontSize:11,opacity:0.8,fontWeight:600}}>This Week</div>
-                        </div>
-                        <div style={{background:'linear-gradient(135deg,#ec4899,#db2777)',borderRadius:14,padding:16,textAlign:'center'}}>
-                            <div style={{fontSize:28,fontWeight:800}}>{userEquipment.length}</div>
-                            <div style={{fontSize:11,opacity:0.8,fontWeight:600}}>Equipment</div>
-                        </div>
-                    </div>
-
-                    {/* Workout Days */}
-                    <div style={{marginBottom:24}}>
-                        <h2 style={{fontSize:16,fontWeight:700,marginBottom:12,color:'#888'}}>START WORKOUT</h2>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                            {Object.entries(workoutPrograms).map(([key,prog])=>(
-                                <button key={key} onClick={()=>selectDay(key)}
-                                    style={{
-                                        background:'#111',border:'1px solid #222',borderRadius:16,padding:'20px 16px',
-                                        textAlign:'left',transition:'all 0.2s',
-                                        gridColumn: key==='extra'?'1/3':undefined,
-                                    }}>
-                                    <div style={{fontSize:24,marginBottom:6}}>{prog.icon}</div>
-                                    <div style={{fontWeight:700,fontSize:15,color:'#e8e8e8'}}>{prog.name}</div>
-                                    <div style={{fontSize:11,color:'#666',marginTop:2}}>{prog.variations.length} variations</div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Equipment Modal */}
-                    {showEquipment && (
-                        <div onClick={()=>setShowEquipment(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}}>
-                            <div onClick={e=>e.stopPropagation()} style={{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'80vh',overflowY:'auto'}}>
-                                <h2 style={{fontSize:20,fontWeight:800,marginBottom:16}}>My Equipment</h2>
-                                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:16}}>
-                                    {allEquipment.map(item=>(
-                                        <label key={item} style={{display:'flex',alignItems:'center',padding:'10px 12px',background:userEquipment.includes(item)?'rgba(99,102,241,0.15)':'#111',border:userEquipment.includes(item)?'1px solid #6366f1':'1px solid #222',borderRadius:10,cursor:'pointer',transition:'all 0.2s'}}>
-                                            <input type="checkbox" checked={userEquipment.includes(item)} onChange={()=>toggleEquipment(item)} style={{marginRight:8}}/>
-                                            <span style={{fontSize:13,fontWeight:500}}>{item}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                                <button onClick={saveEquipment} style={{width:'100%',background:'#22c55e',color:'#fff',borderRadius:12,padding:'14px',fontWeight:700,fontSize:15}}>Save Equipment</button>
-                            </div>
-                        </div>
-                    )}
-
-                    {showHistory && <WorkoutHistory workouts={workoutHistory} onDelete={deleteWorkout} onEdit={editWorkout} onClose={()=>setShowHistory(false)}/>}
-                </div>
-            </div>
-        );
-    }
-
-    // ─── WORKOUT IN PROGRESS ───
-    const program = workoutPrograms[currentDay];
-    const variation = program.variations[selectedVariation];
-
-    return (
-        <div style={{minHeight:'100vh',background:'#0a0a0a',padding:16,paddingBottom:100}}>
-            <div style={{maxWidth:600,margin:'0 auto'}}>
-                {prMessages.map((msg,i) => <PRBanner key={i} message={msg}/>)}
-
-                <button onClick={()=>{if(confirm('Exit workout? Progress will be lost.')){setCurrentDay(null);setCurrentWorkout(null);setWorkoutStarted(false);setStartTime(null);}}}
-                    style={{background:'none',color:'#888',fontSize:15,fontWeight:600,marginBottom:12,padding:'8px 0'}}>
-                    ← Back
-                </button>
-
-                {selectedExercise && <ExerciseDetailModal exerciseName={selectedExercise} previousData={getPreviousExerciseData(selectedExercise)} onClose={()=>setSelectedExercise(null)}/>}
-                {restTimer && <RestTimer seconds={restTimer} onComplete={()=>setRestTimer(null)}/>}
-                {showSetTimer && <SetTimerWidget onClose={()=>setShowSetTimer(false)}/>}
-
-                <div style={{background:'#111',borderRadius:20,padding:20,border:'1px solid #1e1e1e'}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                        <div>
-                            <h2 style={{fontSize:20,fontWeight:800}}>{program.icon} {program.name}</h2>
-                        </div>
-                        <button onClick={()=>setShowSetTimer(!showSetTimer)}
-                            style={{background:'#1e1e3a',color:'#60a5fa',padding:'8px 14px',borderRadius:10,fontWeight:700,fontSize:12}}>
-                            ⏱ Timer
-                        </button>
-                    </div>
-
-                    {/* Variation Selector */}
-                    <div style={{display:'flex',gap:6,marginBottom:16}}>
-                        {program.variations.map((_,vi)=>(
-                            <button key={vi} onClick={()=>changeVariation(vi)}
-                                style={{
-                                    flex:1,
-                                    background:vi===selectedVariation?program.color:'#1a1a2e',
-                                    color:vi===selectedVariation?'#fff':'#888',
-                                    borderRadius:8,padding:'8px',fontWeight:700,fontSize:13,
-                                    border:vi===selectedVariation?'none':'1px solid #333',
-                                }}>
-                                V{vi+1}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Start / Timer */}
-                    {!workoutStarted ? (
-                        <button onClick={startWorkoutTimer}
-                            style={{width:'100%',background:'linear-gradient(135deg,#22c55e,#16a34a)',color:'#fff',borderRadius:12,padding:'16px',fontWeight:800,fontSize:16,marginBottom:16}}>
-                            ▶ Start Workout
-                        </button>
-                    ) : (
-                        <div style={{marginBottom:16}}>
-                            <WorkoutTimer startTime={startTime}/>
-                        </div>
-                    )}
-
-                    {/* Exercises */}
-                    {currentWorkout && currentWorkout.exercises.map((exercise, exIdx) => {
-                        const programEx = variation[exIdx];
-                        const displayName = swappedExercises[exIdx] || exercise.name;
-                        const previousData = getPreviousExerciseData(displayName);
-                        const equipCheck = checkEquipment(displayName);
-                        // Use the ORIGINAL exercise name for finding substitutes
-                        const originalName = variation[exIdx].name;
-
-                        return (
-                            <div key={exIdx} style={{background:'#0a0a0a',borderRadius:14,padding:16,marginBottom:10,border:'1px solid #1e1e1e'}} className="slide-up">
-                                <div style={{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:10}}>
-                                    <div style={{flex:1}}>
-                                        <h3 style={{fontSize:15,fontWeight:700}}>{displayName}</h3>
-                                        {!equipCheck.hasEquipment && <div style={{fontSize:11,color:'#f59e0b',marginTop:2}}>⚠️ Missing: {equipCheck.missing.join(', ')}</div>}
-                                        {previousData && <div style={{fontSize:11,color:'#818cf8',marginTop:2}}>Last: {previousData.filter(s=>s.weight&&s.reps).map(s=>`${s.weight}×${s.reps}`).join(', ')}</div>}
-                                    </div>
-                                    <div style={{display:'flex',gap:4,marginLeft:8}}>
-                                        {!equipCheck.hasEquipment && (
-                                            <button onClick={()=>swapExercise(originalName, exIdx)}
-                                                style={{background:'#f59e0b',color:'#000',padding:'6px 10px',borderRadius:8,fontSize:11,fontWeight:700}}>Swap</button>
-                                        )}
-                                        <button onClick={()=>setSelectedExercise(displayName)}
-                                            style={{background:'#1e1e3a',color:'#818cf8',padding:'6px 10px',borderRadius:8,fontSize:11,fontWeight:700}}>Info</button>
-                                    </div>
-                                </div>
-
-                                <div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
-                                    <span style={{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}}>Sets: {programEx.sets}</span>
-                                    <span style={{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}}>Reps: {programEx.reps}</span>
-                                    <span style={{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}}>Rest: {programEx.rest}s</span>
-                                </div>
-
-                                {exercise.sets.map((set, setIdx) => (
-                                    <div key={setIdx} style={{display:'grid',gridTemplateColumns:'30px 1fr 1fr 50px',gap:6,marginBottom:4,alignItems:'center'}}>
-                                        <span style={{color:'#6366f1',fontWeight:800,fontSize:13,textAlign:'center'}}>{setIdx+1}</span>
-                                        <input type="number" placeholder="lbs" value={set.weight}
-                                            onChange={e=>updateSet(exIdx,setIdx,'weight',e.target.value)}
-                                            style={{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'10px 8px',textAlign:'center',fontSize:14}}/>
-                                        <input type="number" placeholder="reps" value={set.reps}
-                                            onChange={e=>updateSet(exIdx,setIdx,'reps',e.target.value)}
-                                            style={{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'10px 8px',textAlign:'center',fontSize:14}}/>
-                                        <button onClick={()=>toggleSetComplete(exIdx,setIdx,programEx.rest)}
-                                            style={{background:set.completed?'#22c55e':'#1a1a2e',color:set.completed?'#fff':'#555',borderRadius:8,fontWeight:800,fontSize:16,border:set.completed?'none':'1px solid #333',padding:'8px'}}>
-                                            ✓
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        );
-                    })}
-
-                    {/* Cardio Finisher */}
-                    <CardioFinisherSection finisher={program.cardioFinisher} selected={selectedCardio} onSelect={setSelectedCardio}/>
-
-                    {/* Notes */}
-                    <div style={{marginBottom:16}}>
-                        <div style={{fontSize:12,fontWeight:600,color:'#888',marginBottom:6}}>Workout Notes</div>
-                        <textarea value={workoutNotes} onChange={e=>setWorkoutNotes(e.target.value)}
-                            placeholder="How did it feel? Any PRs?"
-                            style={{width:'100%',background:'#0a0a0a',color:'#e8e8e8',border:'1px solid #222',borderRadius:10,padding:12,fontSize:14}}
-                            rows="3"/>
-                    </div>
-
-                    <button onClick={completeWorkout}
-                        style={{width:'100%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',borderRadius:14,padding:'16px',fontWeight:800,fontSize:16}}>
-                        Complete Workout
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-ReactDOM.render(<App/>, document.getElementById('root'));
+ReactDOM.render(React.createElement(App),document.getElementById('root'));
 </script>
 </body>
 </html>
