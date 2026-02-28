@@ -13,10 +13,13 @@
         button{font-family:inherit;cursor:pointer;min-height:44px;border:none}
         @keyframes prBanner{0%{transform:translateY(-100%);opacity:0}10%{transform:translateY(0);opacity:1}90%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0}}
         .pr-banner{animation:prBanner 4s ease forwards;position:fixed;top:0;left:0;right:0;z-index:9999;padding:16px;text-align:center;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;font-weight:800;font-size:18px}
+        .cal-day{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:4px 0;min-height:44px;border-radius:8px;cursor:pointer;border:none;background:transparent;color:#888;font-size:12px;font-weight:500}
+        .cal-day.has-workout{color:#e8e8e8;font-weight:700}
+        .cal-day.today{background:#1e1e3a;color:#818cf8;font-weight:800}
+        .cal-dot{width:6px;height:6px;border-radius:50%;margin-top:2px}
     </style>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-title" content="Workout">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏋️</text></svg>">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -24,558 +27,368 @@
 <body>
 <div id="root"></div>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script>const APP_VERSION="1.0.1771456457";console.log("Workout Tracker v"+APP_VERSION);</script>
+<script>const APP_VERSION="2.1.1772311213";console.log("Workout Tracker v"+APP_VERSION);</script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">
 const {useState,useEffect}=React;
+const h=React.createElement;
 const ST={get:k=>{try{const d=localStorage.getItem(k);return d?JSON.parse(d):null}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
-
-const allEquipment=['Barbell','Dumbbells','Kettlebells','Cable Machine','Pull-up Bar','Bench','Squat Rack','Leg Press','Rowing Machine','Ski Erg','Assault Bike','TRX Straps','Treadmill','Battle Ropes','Sled','Box/Platform','Slam Ball','Medicine Ball','Yoga/Stability Ball','Resistance Bands','Dip Station','Hex Bar','Hip Thruster Machine'];
+const allEquipment=['Barbell','Dumbbells','Kettlebells','Cable Machine','Pull-up Bar','Bench','Squat Rack','Leg Press','Rowing Machine','Ski Erg','Assault Bike','TRX Straps','Treadmill','Battle Ropes','Sled','Box/Platform','Slam Ball','Medicine Ball','Yoga/Stability Ball','Resistance Bands','Dip Station','Hex Bar','Hip Thruster Machine','Back Extension Machine','Leg Curl/Extension Machine','BOSU Ball'];
 
 const EX={
 "Barbell Deadlift-Clean-Press":{eq:['Barbell'],su:['DB Clean and Press','KB Clean and Press'],de:"Explosive full-body: deadlift, clean to shoulders, press overhead.",cu:["Flat back","Explosive hip drive","Catch on shoulders","Full lockout"],mg:['Full Body','Shoulders']},
-"DB Clean and Press":{eq:['Dumbbells'],su:['KB Clean and Press','Barbell Deadlift-Clean-Press','Standing DB Shoulder Press'],de:"Dumbbell clean and press. Full body power movement.",cu:["Clean to shoulders","Press overhead","Full lockout","Control down"],mg:['Full Body','Shoulders']},
-"KB Clean and Press":{eq:['Kettlebells'],su:['DB Clean and Press','Barbell Deadlift-Clean-Press','KB Standing Shoulder Press'],de:"Kettlebell clean and press.",cu:["Hip drive on clean","Rack position","Full lockout","Control down"],mg:['Full Body','Shoulders']},
+"DB Clean and Press":{eq:['Dumbbells'],su:['KB Clean and Press','Barbell Deadlift-Clean-Press','Standing DB Shoulder Press'],de:"Dumbbell clean and press.",cu:["Clean to shoulders","Press overhead","Full lockout","Control down"],mg:['Full Body','Shoulders']},
+"KB Clean and Press":{eq:['Kettlebells'],su:['DB Clean and Press','Barbell Deadlift-Clean-Press'],de:"Kettlebell clean and press.",cu:["Hip drive on clean","Rack position","Full lockout","Control down"],mg:['Full Body','Shoulders']},
 "KB Suitcase Squats":{eq:['Kettlebells'],su:['Goblet Squats','DB Suitcase Squats'],de:"Hold KB at side, squat upright.",cu:["Shoulders level","Core tight","Parallel depth","Drive heels"],mg:['Legs','Core']},
-"DB Suitcase Squats":{eq:['Dumbbells'],su:['KB Suitcase Squats','Goblet Squats'],de:"Hold DB at side like suitcase, squat.",cu:["Shoulders level","Core tight","Parallel depth","Drive heels"],mg:['Legs','Core']},
+"DB Suitcase Squats":{eq:['Dumbbells'],su:['KB Suitcase Squats','Goblet Squats'],de:"Hold DB at side, squat upright.",cu:["Shoulders level","Core tight","Parallel depth","Drive heels"],mg:['Legs','Core']},
 "Battle Ropes":{eq:['Battle Ropes'],su:['Jump Rope','High Knees','Mountain Climbers','Assault Bike'],de:"Alternating waves with heavy ropes.",cu:["Athletic stance","Rapid arms","Rhythm","Core engaged"],mg:['Cardio','Arms']},
-"Bulgarian Split Squats":{eq:['Bench','Dumbbells'],su:['Lunges','Step-Ups','Walking Lunges','TRX Split Squats'],de:"Rear foot elevated single-leg squat.",cu:["Front shin vertical","Knee over toe","Chest up","Full depth"],mg:['Legs','Glutes']},
-"Box Jumps":{eq:['Box/Platform'],su:['Jump Squats','Step-Ups'],de:"Explosive jump onto platform.",cu:["Soft landing","Full hip extension","Land quietly","Step down"],mg:['Legs','Power']},
-"Yoga Ball Planks":{eq:['Yoga/Stability Ball'],su:['Planks','Dead Bugs','TRX Planks'],de:"Plank on stability ball.",cu:["Neutral spine","Squeeze glutes","Don't sag","Breathe steady"],mg:['Core']},
-"Dead Ball Side-to-Side Slam":{eq:['Slam Ball'],su:['Russian Twists','Mountain Climbers','Woodchops'],de:"Rotational dead ball slam.",cu:["Rotate from hips","Slam hard","Athletic stance","Full range"],mg:['Core','Power']},
-"Russian Twists":{eq:[],su:['Dead Ball Side-to-Side Slam','Woodchops','Mountain Climbers'],de:"Seated rotation exercise for obliques.",cu:["Lean back slightly","Rotate from torso","Feet off ground for challenge","Control movement"],mg:['Core']},
-"Woodchops":{eq:['Cable Machine'],su:['Russian Twists','Dead Ball Side-to-Side Slam'],de:"Diagonal chopping motion on cable for rotational power.",cu:["Rotate from hips","Control both directions","Full range","Core engaged"],mg:['Core','Power']},
-"DB Walking Lunges":{eq:['Dumbbells'],su:['Walking Lunges','Bulgarian Split Squats','KB Walking Lunges'],de:"Walking lunges with DBs.",cu:["Big steps","Knee over ankle","Upright torso","Drive heel"],mg:['Legs','Glutes']},
+"Bulgarian Split Squats":{eq:['Bench','Dumbbells'],su:['Lunges','Step-Ups','TRX Split Squats'],de:"Rear foot elevated single-leg squat.",cu:["Front shin vertical","Knee over toe","Chest up","Full depth"],mg:['Legs','Glutes']},
+"Box Jumps":{eq:['Box/Platform'],su:['Jump Squats','Step-Ups','BOSU Jump Squats'],de:"Explosive jump onto platform.",cu:["Soft landing","Full hip extension","Land quietly","Step down"],mg:['Legs','Power']},
+"Yoga Ball Planks":{eq:['Yoga/Stability Ball'],su:['Planks','Dead Bugs','TRX Planks','BOSU Planks'],de:"Plank on stability ball.",cu:["Neutral spine","Squeeze glutes","Don't sag","Breathe steady"],mg:['Core']},
+"Dead Ball Side-to-Side Slam":{eq:['Slam Ball'],su:['Russian Twists','Woodchops','Mountain Climbers'],de:"Rotational dead ball slam.",cu:["Rotate from hips","Slam hard","Athletic stance","Full range"],mg:['Core','Power']},
+"Russian Twists":{eq:[],su:['Dead Ball Side-to-Side Slam','Woodchops'],de:"Seated rotation for obliques.",cu:["Lean back slightly","Rotate from torso","Feet off ground","Control movement"],mg:['Core']},
+"Woodchops":{eq:['Cable Machine'],su:['Russian Twists','Dead Ball Side-to-Side Slam'],de:"Diagonal chopping motion for rotational power.",cu:["Rotate from hips","Control both directions","Full range","Core engaged"],mg:['Core','Power']},
+"DB Walking Lunges":{eq:['Dumbbells'],su:['Walking Lunges','KB Walking Lunges','Bulgarian Split Squats'],de:"Walking lunges with DBs.",cu:["Big steps","Knee over ankle","Upright torso","Drive heel"],mg:['Legs','Glutes']},
 "Chin Ups":{eq:['Pull-up Bar'],su:['Lat Pulldown','Band Chin Ups','TRX Rows'],de:"Underhand grip pull-up.",cu:["Full hang","Supinated grip","Chin over bar","Control descent"],mg:['Back','Biceps']},
-"Band Chin Ups":{eq:['Pull-up Bar','Resistance Bands'],su:['Chin Ups','Lat Pulldown','TRX Rows'],de:"Band-assisted chin ups for building up to unassisted.",cu:["Band under foot","Full range","Control descent","Supinated grip"],mg:['Back','Biceps']},
-"Sled Rows":{eq:['Sled'],su:['Cable Rows','Barbell Rows','Band Rows','TRX Rows'],de:"Row sled towards you.",cu:["Hinge at hips","Pull to chest","Squeeze back","Stay low"],mg:['Back','Biceps']},
-"Cable Rows":{eq:['Cable Machine'],su:['Barbell Rows','DB Rows','TRX Rows','Band Rows'],de:"Seated cable row for back thickness.",cu:["Sit tall","Pull to chest","Squeeze shoulder blades","Control return"],mg:['Back','Biceps']},
-"Barbell Rows":{eq:['Barbell'],su:['DB Rows','Cable Rows','TRX Rows'],de:"Bent over barbell row for back.",cu:["Flat back","Pull to lower chest","Squeeze top","Don't jerk"],mg:['Back','Biceps']},
+"Band Chin Ups":{eq:['Pull-up Bar','Resistance Bands'],su:['Chin Ups','Lat Pulldown','TRX Rows'],de:"Band-assisted chin ups.",cu:["Band under foot","Full range","Control descent","Supinated grip"],mg:['Back','Biceps']},
+"Sled Rows":{eq:['Sled'],su:['Cable Rows','Barbell Rows','TRX Rows'],de:"Row sled towards you.",cu:["Hinge at hips","Pull to chest","Squeeze back","Stay low"],mg:['Back','Biceps']},
+"Cable Rows":{eq:['Cable Machine'],su:['Barbell Rows','DB Rows','TRX Rows'],de:"Seated cable row.",cu:["Sit tall","Pull to chest","Squeeze shoulder blades","Control return"],mg:['Back','Biceps']},
+"Barbell Rows":{eq:['Barbell'],su:['DB Rows','Cable Rows','TRX Rows'],de:"Bent over barbell row.",cu:["Flat back","Pull to lower chest","Squeeze top","Don't jerk"],mg:['Back','Biceps']},
 "DB Rows":{eq:['Dumbbells'],su:['Barbell Rows','Cable Rows','TRX Rows'],de:"Single arm dumbbell row.",cu:["Flat back","Pull to hip","Squeeze at top","Control down"],mg:['Back','Biceps']},
 "Band Rows":{eq:['Resistance Bands'],su:['Cable Rows','DB Rows','TRX Rows'],de:"Resistance band row.",cu:["Sit tall","Pull to chest","Squeeze back","Control return"],mg:['Back']},
 "Renegade Rows":{eq:['Dumbbells'],su:['DB Rows','Plank Rows','TRX Rows'],de:"Push-up position DB rows.",cu:["Minimize rotation","Wide feet","Core braced","Full range"],mg:['Back','Core']},
 "Plank Rows":{eq:['Dumbbells'],su:['Renegade Rows','DB Rows'],de:"Row from plank position.",cu:["Wide stance","Minimize rotation","Core tight","Full range"],mg:['Back','Core']},
-"DB Bench Press":{eq:['Dumbbells','Bench'],su:['Barbell Flat Bench','Push-Ups','Machine Press'],de:"Dumbbell bench press.",cu:["Full range","Control down","Press up","Stable shoulders"],mg:['Chest','Triceps']},
-"Ski Erg":{eq:['Ski Erg'],su:['Rower','Battle Ropes','Jump Rope','Assault Bike'],de:"Ski ergometer conditioning.",cu:["Hinge at hips","Drive with lats","Full extension","Rhythmic"],mg:['Cardio','Back']},
-"Assault Bike":{eq:['Assault Bike'],su:['Ski Erg','Rower','Battle Ropes','Jump Rope'],de:"Fan bike for full body cardio. Push/pull arms while pedaling.",cu:["Drive with legs","Push and pull arms","Steady pace or sprint","Core engaged"],mg:['Cardio','Full Body']},
-"Push-Ups":{eq:[],su:['Knee Push-Ups','Incline Push-Ups','DB Bench Press'],de:"Classic push-up.",cu:["Full lockout","Chest to floor","Core tight","Elbows 45"],mg:['Chest','Triceps']},
+"DB Bench Press":{eq:['Dumbbells','Bench'],su:['Barbell Flat Bench','Push Ups','Machine Press'],de:"Dumbbell bench press.",cu:["Full range","Control down","Press up","Stable shoulders"],mg:['Chest','Triceps']},
+"Ski Erg":{eq:['Ski Erg'],su:['Rower','Assault Bike','Battle Ropes','Jump Rope'],de:"Ski ergometer conditioning.",cu:["Hinge at hips","Drive with lats","Full extension","Rhythmic"],mg:['Cardio','Back']},
+"Assault Bike":{eq:['Assault Bike'],su:['Ski Erg','Rower','Battle Ropes','Jump Rope'],de:"Fan bike full body cardio.",cu:["Drive with legs","Push and pull arms","Steady pace or sprint","Core engaged"],mg:['Cardio','Full Body']},
 "Push Ups":{eq:[],su:['Knee Push-Ups','Incline Push-Ups','DB Bench Press'],de:"Classic push-up.",cu:["Full lockout","Chest to floor","Core tight","Elbows 45"],mg:['Chest','Triceps']},
-"Knee Push-Ups":{eq:[],su:['Push Ups','Incline Push-Ups'],de:"Push-ups from knees. Scaled version.",cu:["Full range","Chest to floor","Core tight","Elbows 45"],mg:['Chest','Triceps']},
-"Incline Push-Ups":{eq:[],su:['Push Ups','Knee Push-Ups'],de:"Push-ups with hands elevated. Easier progression.",cu:["Full range","Chest toward surface","Core tight","Control movement"],mg:['Chest','Triceps']},
+"Knee Push-Ups":{eq:[],su:['Push Ups','Incline Push-Ups'],de:"Push-ups from knees.",cu:["Full range","Chest to floor","Core tight","Elbows 45"],mg:['Chest','Triceps']},
+"Incline Push-Ups":{eq:[],su:['Push Ups','Knee Push-Ups'],de:"Push-ups with hands elevated.",cu:["Full range","Core tight","Control movement"],mg:['Chest','Triceps']},
 "Tire Flips":{eq:[],su:['Deadball Over Shoulder Throws','KB Swings','Burpees'],de:"Flip tire for explosive power.",cu:["Squat to grip","Drive hips","Push over top","Full extension"],mg:['Full Body','Power']},
 "Deadball Over Shoulder Throws":{eq:['Slam Ball'],su:['KB Swings','Burpees','Dead Ball Slams'],de:"Dead ball over shoulder throw.",cu:["Hinge pickup","Explosive hip drive","Rotate throw","Alternate sides"],mg:['Full Body','Power']},
 "Dead Ball Slams":{eq:['Slam Ball'],su:['KB Swings','Burpees','Deadball Over Shoulder Throws'],de:"Overhead dead ball slam.",cu:["Full reach overhead","Slam with force","Hinge to pick up","Fast tempo"],mg:['Full Body','Core']},
 "DB Flat Bench":{eq:['Dumbbells','Bench'],su:['Barbell Flat Bench','Push Ups'],de:"Flat DB bench press.",cu:["Full range","Control down","Press up","Stable base"],mg:['Chest','Triceps']},
 "Sled Pushes":{eq:['Sled'],su:['Sprint Intervals','Farmer Walks','Assault Bike'],de:"Push loaded sled.",cu:["Low angle","Drive through legs","Short steps","Arms extended"],mg:['Legs','Cardio']},
-"Sprint Intervals":{eq:[],su:['Sled Pushes','Assault Bike','High Knees'],de:"Sprint interval training.",cu:["Full effort sprints","Quick recovery","Stay on toes","Pump arms"],mg:['Cardio','Legs']},
-"Farmer Walks":{eq:['Dumbbells'],su:['Kettlebell Walks','DB Carries'],de:"Heavy loaded carries.",cu:["Tall posture","Core braced","Steady pace","Shoulders back"],mg:['Core','Grip']},
-"DB Carries":{eq:['Dumbbells'],su:['Farmer Walks','Kettlebell Walks'],de:"Dumbbell loaded carries.",cu:["Tall posture","Core engaged","Steady pace","Shoulders back"],mg:['Core','Grip']},
-"Over Shoulder Dead Ball Throws":{eq:['Slam Ball'],su:['KB Swings','Burpees','Deadball Over Shoulder Throws'],de:"Dead ball over shoulder.",cu:["Deep pickup","Hip drive","Alternate sides","Full extension"],mg:['Full Body','Power']},
-"Deadball Over-Shoulder Toss":{eq:['Slam Ball'],su:['KB Swings','Burpees','Over Shoulder Dead Ball Throws'],de:"Explosive dead ball shoulder toss.",cu:["Deep pickup","Hip drive","Rotate throw","Alternate sides"],mg:['Full Body','Power']},
+"Sprint Intervals":{eq:[],su:['Sled Pushes','Assault Bike','High Knees'],de:"Sprint interval training.",cu:["Full effort","Quick recovery","Stay on toes","Pump arms"],mg:['Cardio','Legs']},
+"Farmer Walks":{wt:true,eq:['Dumbbells'],su:['Kettlebell Walks','DB Carries'],de:"Heavy loaded carries.",cu:["Tall posture","Core braced","Steady pace","Shoulders back"],mg:['Core','Grip']},
+"DB Carries":{wt:true,eq:['Dumbbells'],su:['Farmer Walks','Kettlebell Walks'],de:"Dumbbell loaded carries.",cu:["Tall posture","Core engaged","Steady pace"],mg:['Core','Grip']},
+"Over Shoulder Dead Ball Throws":{eq:['Slam Ball'],su:['KB Swings','Burpees','Dead Ball Slams'],de:"Dead ball over shoulder.",cu:["Deep pickup","Hip drive","Alternate sides","Full extension"],mg:['Full Body','Power']},
+"Deadball Over-Shoulder Toss":{eq:['Slam Ball'],su:['KB Swings','Burpees','Over Shoulder Dead Ball Throws'],de:"Explosive dead ball shoulder toss.",cu:["Deep pickup","Hip drive","Rotate throw"],mg:['Full Body','Power']},
 "Deadball Side Slams + Burpees":{eq:['Slam Ball'],su:['Burpees','Mountain Climbers'],de:"Dead ball slams + burpees combo.",cu:["Explosive slams","Quick burpee","Alternate sides","Keep pace"],mg:['Full Body','Cardio']},
 "Deadball Heel Elevated Squats":{eq:['Slam Ball'],su:['Goblet Squats','Heel Elevated Goblet Squat'],de:"Dead ball heel elevated squat.",cu:["Upright torso","Deep squat","Knees forward","Drive up"],mg:['Legs','Quads']},
 "SA KB Row":{eq:['Kettlebells'],su:['Single Arm DB Row','Cable Rows'],de:"Single arm KB row.",cu:["Flat back","Pull to hip","Squeeze top","Control down"],mg:['Back','Biceps']},
 "Single Arm DB Row":{eq:['Dumbbells'],su:['SA KB Row','Cable Rows','TRX Rows'],de:"Single arm dumbbell row.",cu:["Flat back","Pull to hip","Squeeze at top","Control down"],mg:['Back','Biceps']},
-"Hip Thruster Machine":{eq:['Hip Thruster Machine'],su:['Barbell Hip Thrusts','Glute Bridge'],de:"Dedicated hip thruster machine for glute isolation.",cu:["Full extension","Squeeze top","Control eccentric","Drive heels"],mg:['Glutes','Hamstrings']},
-"Barbell Hip Thrusts":{eq:['Barbell','Bench'],su:['Hip Thruster Machine','Glute Bridge'],de:"Barbell hip thrust off bench.",cu:["Shoulders on bench","Drive through heels","Squeeze glutes at top","Control down"],mg:['Glutes','Hamstrings']},
-"Glute Bridge":{eq:[],su:['Barbell Hip Thrusts','Hip Thruster Machine'],de:"Bodyweight glute bridge on floor.",cu:["Drive through heels","Squeeze glutes","Full extension","Control down"],mg:['Glutes','Hamstrings']},
+"Hip Thruster Machine":{eq:['Hip Thruster Machine'],su:['Barbell Hip Thrusts','Glute Bridge'],de:"Dedicated hip thruster machine.",cu:["Full extension","Squeeze top","Control eccentric","Drive heels"],mg:['Glutes','Hamstrings']},
+"Barbell Hip Thrusts":{eq:['Barbell','Bench'],su:['Hip Thruster Machine','Glute Bridge'],de:"Barbell hip thrust off bench.",cu:["Shoulders on bench","Drive through heels","Squeeze glutes","Control down"],mg:['Glutes','Hamstrings']},
+"Glute Bridge":{eq:[],su:['Barbell Hip Thrusts','Hip Thruster Machine'],de:"Bodyweight glute bridge.",cu:["Drive through heels","Squeeze glutes","Full extension","Control down"],mg:['Glutes','Hamstrings']},
 "Single Arm Lat Pulldown":{eq:['Cable Machine'],su:['Single Arm DB Row','TRX Rows','Band Pulldown'],de:"Unilateral lat pulldown.",cu:["Full stretch","Pull to shoulder","Squeeze lat","Control return"],mg:['Back','Biceps']},
-"Band Pulldown":{eq:['Resistance Bands'],su:['Lat Pulldown','Pull Ups','TRX Rows'],de:"Band lat pulldown.",cu:["Full stretch","Pull down to chest","Squeeze lats","Control return"],mg:['Back','Biceps']},
-"Band Pulldowns":{eq:['Resistance Bands'],su:['Lat Pulldown','Pull Ups','TRX Rows'],de:"Band lat pulldowns.",cu:["Full stretch","Pull to chest","Squeeze lats","Control return"],mg:['Back','Biceps']},
-"Heel Elevated Goblet Squat":{eq:['Dumbbells'],su:['Goblet Squats','Front Squat'],de:"Goblet squat heels elevated.",cu:["Elbows between knees","Upright torso","Deep squat","Knees forward"],mg:['Legs','Quads']},
-"Pull Ups":{eq:['Pull-up Bar'],su:['Lat Pulldown','Inverted Rows','Band Pull Ups','TRX Rows'],de:"Overhand grip pull chin over bar.",cu:["Full dead hang","Engage lats","Chest to bar","Control descent"],mg:['Back','Biceps']},
-"Band Pull Ups":{eq:['Pull-up Bar','Resistance Bands'],su:['Pull Ups','Lat Pulldown','TRX Rows'],de:"Band-assisted pull-ups.",cu:["Band under foot","Full range","Engage lats first","Control descent"],mg:['Back','Biceps']},
-"Inverted Rows":{eq:[],su:['Pull Ups','TRX Rows','DB Rows'],de:"Body rows under a bar or using TRX.",cu:["Body straight","Pull chest to bar","Squeeze back","Control down"],mg:['Back','Biceps']},
-"Rower":{eq:['Rowing Machine'],su:['Ski Erg','Assault Bike','Battle Ropes','Jump Rope'],de:"Rowing machine conditioning.",cu:["Legs-back-arms","Drive with legs","Control return","Consistent rate"],mg:['Cardio','Back','Legs']},
+"Band Pulldown":{eq:['Resistance Bands'],su:['Lat Pulldown','Pull Ups','TRX Rows'],de:"Band lat pulldown.",cu:["Full stretch","Pull to chest","Squeeze lats"],mg:['Back','Biceps']},
+"Band Pulldowns":{eq:['Resistance Bands'],su:['Lat Pulldown','Pull Ups','TRX Rows'],de:"Band lat pulldowns.",cu:["Full stretch","Pull to chest","Squeeze lats"],mg:['Back','Biceps']},
+"Heel Elevated Goblet Squat":{eq:['Dumbbells'],su:['Goblet Squats','Front Squat','Leg Press'],de:"Goblet squat heels elevated.",cu:["Elbows between knees","Upright torso","Deep squat","Knees forward"],mg:['Legs','Quads']},
+"Pull Ups":{eq:['Pull-up Bar'],su:['Lat Pulldown','Inverted Rows','Band Pull Ups','TRX Rows'],de:"Overhand grip pull-up.",cu:["Full dead hang","Engage lats","Chest to bar","Control descent"],mg:['Back','Biceps']},
+"Band Pull Ups":{eq:['Pull-up Bar','Resistance Bands'],su:['Pull Ups','Lat Pulldown','TRX Rows'],de:"Band-assisted pull-ups.",cu:["Band under foot","Full range","Engage lats"],mg:['Back','Biceps']},
+"Inverted Rows":{eq:[],su:['Pull Ups','TRX Rows','DB Rows'],de:"Body rows under a bar.",cu:["Body straight","Pull chest to bar","Squeeze back"],mg:['Back','Biceps']},
+"Rower":{eq:['Rowing Machine'],su:['Ski Erg','Assault Bike','Battle Ropes','Jump Rope'],de:"Rowing machine conditioning.",cu:["Legs-back-arms","Drive with legs","Control return"],mg:['Cardio','Back','Legs']},
 "Barbell Back Squat":{eq:['Barbell','Squat Rack'],su:['Front Squat','Goblet Squats','Leg Press'],de:"Barbell back squat.",cu:["Brace core","Break at hips and knees","Below parallel","Drive up"],mg:['Legs','Glutes']},
-"Front Squat":{eq:['Barbell','Squat Rack'],su:['Barbell Back Squat','Goblet Squats','Leg Press'],de:"Front-racked barbell squat.",cu:["Elbows high","Upright torso","Full depth","Drive up"],mg:['Legs','Quads','Core']},
+"Front Squat":{eq:['Barbell','Squat Rack'],su:['Barbell Back Squat','Goblet Squats','Leg Press'],de:"Front-racked barbell squat.",cu:["Elbows high","Upright torso","Full depth"],mg:['Legs','Quads','Core']},
 "KB Bulgarian Split Squats":{eq:['Kettlebells','Bench'],su:['DB Bulgarian Split Squats','Lunges','TRX Split Squats'],de:"Bulgarian split squat with KBs.",cu:["Front shin vertical","Upright torso","Full depth","Drive heel"],mg:['Legs','Glutes']},
-"KB Standing Shoulder Press":{eq:['Kettlebells'],su:['DB Shoulder Press','Standing Barbell Shoulder Press'],de:"Standing KB overhead press.",cu:["Core braced","Press vertically","Full lockout","Control down"],mg:['Shoulders']},
-"Heel Elevated Barbell Back Squat":{eq:['Barbell','Squat Rack'],su:['Heel Elevated Goblet Squat','Front Squat'],de:"Back squat heels elevated for quads.",cu:["Upright torso","Knees forward","Full depth","Drive up"],mg:['Legs','Quads']},
-"Seated DB Shoulder Press":{eq:['Dumbbells','Bench'],su:['Standing DB Shoulder Press','Shoulder Press Machine','KB Standing Shoulder Press'],de:"Seated DB shoulder press.",cu:["Back against bench","Full lockout","Control down","Don't flare elbows"],mg:['Shoulders','Triceps']},
-"DB Bulgarian Split Squats":{eq:['Dumbbells','Bench'],su:['KB Bulgarian Split Squats','Lunges','TRX Split Squats'],de:"Bulgarian split squats with DBs.",cu:["Front shin vertical","Upright torso","Full depth","Drive heel"],mg:['Legs','Glutes']},
-"Heel Elevated Goblet Squats":{eq:['Dumbbells'],su:['Goblet Squats','Front Squat'],de:"Goblet squat heels elevated.",cu:["Elbows between knees","Upright torso","Deep squat","Drive up"],mg:['Legs','Quads']},
-"Cable Tricep Extension":{eq:['Cable Machine'],su:['Dips','DB Tricep Extensions','Push Ups'],de:"Cable tricep pushdown.",cu:["Elbows pinned","Full extension","Squeeze bottom","Control return"],mg:['Triceps']},
-"Kettlebell Walks":{eq:['Kettlebells'],su:['Farmer Walks','DB Carries'],de:"Loaded KB carries.",cu:["Tall posture","Engage core","Steady pace","Shoulders back"],mg:['Core','Grip']},
-"Push Up Circuit":{eq:[],su:['Push Ups','Dips'],de:"Push-up variations in circuit.",cu:["Full range","Maintain form","Minimize rest","Scale as needed"],mg:['Chest','Triceps']},
+"KB Standing Shoulder Press":{eq:['Kettlebells'],su:['DB Shoulder Press','Standing Barbell Shoulder Press'],de:"Standing KB overhead press.",cu:["Core braced","Press vertically","Full lockout"],mg:['Shoulders']},
+"Heel Elevated Barbell Back Squat":{eq:['Barbell','Squat Rack'],su:['Heel Elevated Goblet Squat','Front Squat','Leg Press'],de:"Back squat heels elevated for quads.",cu:["Upright torso","Knees forward","Full depth"],mg:['Legs','Quads']},
+"Seated DB Shoulder Press":{eq:['Dumbbells','Bench'],su:['Standing DB Shoulder Press','Shoulder Press Machine','KB Standing Shoulder Press'],de:"Seated DB shoulder press.",cu:["Back against bench","Full lockout","Control down"],mg:['Shoulders','Triceps']},
+"DB Bulgarian Split Squats":{eq:['Dumbbells','Bench'],su:['KB Bulgarian Split Squats','Lunges','TRX Split Squats'],de:"Bulgarian split squats with DBs.",cu:["Front shin vertical","Upright torso","Full depth"],mg:['Legs','Glutes']},
+"Heel Elevated Goblet Squats":{eq:['Dumbbells'],su:['Goblet Squats','Front Squat','Leg Press'],de:"Goblet squat heels elevated.",cu:["Elbows between knees","Upright torso","Deep squat"],mg:['Legs','Quads']},
+"Cable Tricep Extension":{eq:['Cable Machine'],su:['Dips','DB Tricep Extensions'],de:"Cable tricep pushdown.",cu:["Elbows pinned","Full extension","Squeeze bottom"],mg:['Triceps']},
+"Kettlebell Walks":{wt:true,eq:['Kettlebells'],su:['Farmer Walks','DB Carries'],de:"Loaded KB carries.",cu:["Tall posture","Engage core","Steady pace"],mg:['Core','Grip']},
+"Push Up Circuit":{eq:[],su:['Push Ups','Dips'],de:"Push-up variations in circuit.",cu:["Full range","Maintain form","Minimize rest"],mg:['Chest','Triceps']},
 "Hex Bar Deadlift":{eq:['Hex Bar'],su:['Conventional Deadlift','Sumo Deadlift','Barbell Deadlift'],de:"Trap bar deadlift.",cu:["Neutral spine","Push floor away","Full hip extension","Controlled descent"],mg:['Legs','Back','Glutes']},
-"Conventional Deadlift":{eq:['Barbell'],su:['Hex Bar Deadlift','Sumo Deadlift'],de:"Standard barbell deadlift.",cu:["Neutral spine","Push floor away","Bar close to body","Full lockout"],mg:['Back','Legs','Glutes']},
-"Sumo Deadlift":{eq:['Barbell'],su:['Hex Bar Deadlift','Conventional Deadlift'],de:"Wide stance barbell deadlift.",cu:["Wide stance","Toes out","Push knees out","Drive hips"],mg:['Legs','Glutes','Back']},
-"Barbell Deadlift":{eq:['Barbell'],su:['Hex Bar Deadlift','Conventional Deadlift'],de:"Standard barbell deadlift.",cu:["Neutral spine","Push floor away","Bar close to body","Full lockout"],mg:['Back','Legs','Glutes']},
-"Standing DB Shoulder Press":{eq:['Dumbbells'],su:['KB Standing Shoulder Press','Standing Barbell Shoulder Press'],de:"Standing DB overhead press.",cu:["Core tight","Press overhead","Full lockout","Don't lean back"],mg:['Shoulders','Triceps']},
-"KB Walking Lunges":{eq:['Kettlebells'],su:['DB Walking Lunges','Walking Lunges'],de:"Walking lunges with KBs.",cu:["Big steps","Knee over ankle","Upright torso","Alternate legs"],mg:['Legs','Glutes']},
-"Walking Lunges Plate Overhead":{eq:[],su:['DB Walking Lunges','Walking Lunges'],de:"Walking lunges plate overhead.",cu:["Arms locked out","Plate overhead","Steady pace","Full depth"],mg:['Legs','Shoulders','Core']},
-"DB Lateral Raises":{eq:['Dumbbells'],su:['Cable Lateral Raises','Band Lateral Raises'],de:"DB lateral raises.",cu:["Slight lean","Lead with elbows","Don't swing","Control down"],mg:['Shoulders']},
-"Cable Lateral Raises":{eq:['Cable Machine'],su:['DB Lateral Raises','Band Lateral Raises'],de:"Cable lateral raises for constant tension.",cu:["Slight lean","Lead with elbow","Control both ways","Don't swing"],mg:['Shoulders']},
-"Band Lateral Raises":{eq:['Resistance Bands'],su:['DB Lateral Raises','Cable Lateral Raises'],de:"Resistance band lateral raises.",cu:["Stand on band","Lead with elbows","Control movement","Don't swing"],mg:['Shoulders']},
-"Push Up/Dip Circuit":{eq:[],su:['Push Ups','Dips'],de:"Push-ups and dips circuit.",cu:["Full range","Minimize rest","Maintain form","Scale as needed"],mg:['Chest','Triceps']},
+"Conventional Deadlift":{eq:['Barbell'],su:['Hex Bar Deadlift','Sumo Deadlift'],de:"Standard barbell deadlift.",cu:["Neutral spine","Bar close to body","Full lockout"],mg:['Back','Legs','Glutes']},
+"Sumo Deadlift":{eq:['Barbell'],su:['Hex Bar Deadlift','Conventional Deadlift'],de:"Wide stance deadlift.",cu:["Wide stance","Toes out","Drive hips"],mg:['Legs','Glutes','Back']},
+"Barbell Deadlift":{eq:['Barbell'],su:['Hex Bar Deadlift','Conventional Deadlift'],de:"Standard barbell deadlift.",cu:["Neutral spine","Bar close to body","Full lockout"],mg:['Back','Legs','Glutes']},
+"Standing DB Shoulder Press":{eq:['Dumbbells'],su:['KB Standing Shoulder Press','Standing Barbell Shoulder Press'],de:"Standing DB overhead press.",cu:["Core tight","Press overhead","Full lockout"],mg:['Shoulders','Triceps']},
+"KB Walking Lunges":{eq:['Kettlebells'],su:['DB Walking Lunges','Walking Lunges'],de:"Walking lunges with KBs.",cu:["Big steps","Knee over ankle","Upright torso"],mg:['Legs','Glutes']},
+"Walking Lunges Plate Overhead":{eq:[],su:['DB Walking Lunges','Walking Lunges'],de:"Walking lunges plate overhead.",cu:["Arms locked out","Plate overhead","Steady pace"],mg:['Legs','Shoulders','Core']},
+"DB Lateral Raises":{eq:['Dumbbells'],su:['Cable Lateral Raises','Band Lateral Raises'],de:"DB lateral raises.",cu:["Slight lean","Lead with elbows","Don't swing"],mg:['Shoulders']},
+"Cable Lateral Raises":{eq:['Cable Machine'],su:['DB Lateral Raises','Band Lateral Raises'],de:"Cable lateral raises.",cu:["Slight lean","Lead with elbow","Control both ways"],mg:['Shoulders']},
+"Band Lateral Raises":{eq:['Resistance Bands'],su:['DB Lateral Raises','Cable Lateral Raises'],de:"Band lateral raises.",cu:["Stand on band","Lead with elbows"],mg:['Shoulders']},
+"Push Up/Dip Circuit":{eq:[],su:['Push Ups','Dips'],de:"Push-ups and dips circuit.",cu:["Full range","Minimize rest","Maintain form"],mg:['Chest','Triceps']},
 "Barbell Flat Bench":{eq:['Barbell','Bench'],su:['DB Bench Press','Push Ups'],de:"Classic barbell bench press.",cu:["Arch slightly","Retract shoulders","Bar to mid-chest","Full lockout"],mg:['Chest','Triceps']},
-"Machine Flys":{eq:[],su:['Cable Flys','DB Flys'],de:"Machine fly for chest.",cu:["Slight elbow bend","Squeeze center","Full stretch","Control return"],mg:['Chest']},
-"Cable Flys":{eq:['Cable Machine'],su:['Machine Flys','DB Flys'],de:"Cable crossover flys.",cu:["Slight elbow bend","Squeeze at center","Control return","Full stretch"],mg:['Chest']},
-"DB Flys":{eq:['Dumbbells','Bench'],su:['Cable Flys','Machine Flys'],de:"Dumbbell chest flys.",cu:["Slight elbow bend","Wide arc","Squeeze at top","Control down"],mg:['Chest']},
-"2 Cable Pullovers":{eq:['Cable Machine'],su:['DB Pullovers','Straight Arm Pulldowns'],de:"Cable pullover.",cu:["Slight elbow bend","Full stretch","Pull to hips","Control return"],mg:['Back','Chest']},
-"DB Pullovers":{eq:['Dumbbells','Bench'],su:['2 Cable Pullovers','Straight Arm Pulldowns'],de:"Dumbbell pullover for lats and chest.",cu:["Slight elbow bend","Full stretch overhead","Pull over to chest","Control movement"],mg:['Back','Chest']},
-"Straight Arm Pulldowns":{eq:['Cable Machine'],su:['2 Cable Pullovers','DB Pullovers'],de:"Straight arm cable pulldown.",cu:["Arms straight","Pull to thighs","Squeeze lats","Control return"],mg:['Back']},
-"Dips":{eq:['Dip Station'],su:['Bench Dips','Push Ups','TRX Dips'],de:"Parallel bar dips.",cu:["Lean forward","Elbows 90","Full lockout","Control descent"],mg:['Chest','Triceps']},
-"Bench Dips":{eq:['Bench'],su:['Dips','Push Ups','TRX Dips'],de:"Bench-supported tricep dips.",cu:["Hands on bench edge","Elbows back","Full range","Control down"],mg:['Triceps']},
-"DB Incline Bench":{eq:['Dumbbells','Bench'],su:['Incline Barbell Press','Push Ups'],de:"Incline DB bench.",cu:["30-45 degree","Full stretch","Press up and in","Squeeze top"],mg:['Chest','Shoulders']},
-"Incline Barbell Press":{eq:['Barbell','Bench'],su:['DB Incline Bench','Push Ups'],de:"Incline barbell bench press.",cu:["30-45 degree","Bar to upper chest","Full lockout","Retract shoulders"],mg:['Chest','Shoulders']},
-"DB Chest Supported Rows":{eq:['Dumbbells','Bench'],su:['Barbell Rows','Cable Rows','TRX Rows'],de:"Chest supported DB rows.",cu:["Chest on bench","Pull to hips","Squeeze back","Control down"],mg:['Back']},
-"Straight Bar Tricep Pushdown":{eq:['Cable Machine'],su:['Rope Pushdown','Dips','Push Ups'],de:"Straight bar tricep pushdown.",cu:["Elbows pinned","Full extension","Squeeze bottom","Control up"],mg:['Triceps']},
-"Rope Pushdown":{eq:['Cable Machine'],su:['Straight Bar Tricep Pushdown','V Handle Tricep Pushdown','Dips'],de:"Rope tricep pushdown.",cu:["Elbows pinned","Split rope at bottom","Full extension","Control up"],mg:['Triceps']},
-"Machine Row":{eq:[],su:['Cable Rows','DB Rows','TRX Rows'],de:"Seated row machine.",cu:["Chest against pad","Pull to chest","Squeeze back","Full stretch"],mg:['Back']},
-"Tricep Press Machine":{eq:[],su:['Straight Bar Tricep Pushdown','Dips','Push Ups'],de:"Machine tricep press.",cu:["Elbows in","Full extension","Control return","Don't lock hard"],mg:['Triceps']},
-"Standing Barbell Shoulder Press":{eq:['Barbell'],su:['Standing DB Shoulder Press','KB Standing Shoulder Press'],de:"Standing barbell OHP.",cu:["Core braced","Press overhead","Full lockout","Control down"],mg:['Shoulders','Triceps']},
-"DB Curls":{eq:['Dumbbells'],su:['Barbell Curls','Cable Curls'],de:"DB bicep curls.",cu:["Control movement","Full range","Don't swing","Squeeze top"],mg:['Biceps']},
-"Barbell Curls":{eq:['Barbell'],su:['DB Curls','Cable Curls'],de:"Barbell bicep curls.",cu:["Elbows pinned","Full range","Don't swing","Squeeze top"],mg:['Biceps']},
-"Cable Curls":{eq:['Cable Machine'],su:['DB Curls','Barbell Curls'],de:"Cable bicep curls.",cu:["Elbows pinned","Full range","Squeeze top","Control down"],mg:['Biceps']},
-"Tricep Extensions":{eq:['Cable Machine'],su:['Dips','DB Tricep Extensions','Push Ups'],de:"Cable tricep extensions.",cu:["Elbows pinned","Full extension","Squeeze bottom","Control up"],mg:['Triceps']},
-"Leg Press":{eq:['Leg Press'],su:['Hack Squat','Goblet Squats','Barbell Back Squat'],de:"Leg press machine.",cu:["Feet shoulder width","Full range","Don't lock knees","Control down"],mg:['Legs','Quads']},
-"SA DB Shoulder Press":{eq:['Dumbbells'],su:['Standing Barbell Shoulder Press','KB Standing Shoulder Press'],de:"Single arm DB shoulder press.",cu:["Core engaged","Press vertically","Control down","Don't lean"],mg:['Shoulders','Core']},
-"Lat Pulldown":{eq:['Cable Machine'],su:['Pull Ups','Band Pulldowns','TRX Rows'],de:"Lat pulldown.",cu:["Full stretch","Pull to chest","Squeeze lats","Lean slightly back"],mg:['Back','Biceps']},
-"DB Tricep Extensions":{eq:['Dumbbells'],su:['Tricep Extensions','Dips','Push Ups'],de:"Overhead DB tricep extensions.",cu:["Elbows close","Full stretch","Extend to lockout","Control down"],mg:['Triceps']},
-"Shoulder Press Machine":{eq:[],su:['Seated DB Shoulder Press','Standing Barbell Shoulder Press'],de:"Machine shoulder press.",cu:["Back against pad","Press to lockout","Control down","Don't flare"],mg:['Shoulders']},
-"Machine Press":{eq:[],su:['DB Bench Press','Barbell Flat Bench','Push Ups'],de:"Machine chest press.",cu:["Back against pad","Full range","Control down","Press to lockout"],mg:['Chest','Triceps']},
-"Hack Squat":{eq:[],su:['Leg Press','Goblet Squats','Barbell Back Squat'],de:"Hack squat machine.",cu:["Feet shoulder width","Full depth","Drive through legs","Don't lock knees"],mg:['Legs','Quads']},
-"V Handle Tricep Pushdown":{eq:['Cable Machine'],su:['Straight Bar Tricep Pushdown','Dips','Push Ups'],de:"V-handle tricep pushdown.",cu:["Elbows pinned","Full extension","Squeeze bottom","Control up"],mg:['Triceps']},
-"Seated Row":{eq:[],su:['Cable Rows','DB Rows','TRX Rows'],de:"Seated row machine.",cu:["Sit tall","Pull to chest","Squeeze back","Full stretch"],mg:['Back']},
-"Lunges":{eq:[],su:['Walking Lunges','Step-Ups','Bulgarian Split Squats'],de:"Bodyweight or weighted lunges.",cu:["Big step","Knee over ankle","Upright torso","Alternate legs"],mg:['Legs','Glutes']},
-"Walking Lunges":{eq:[],su:['Lunges','Step-Ups','DB Walking Lunges'],de:"Walking forward lunges.",cu:["Big steps","Knee over ankle","Upright","Alternate legs"],mg:['Legs','Glutes']},
-"Step-Ups":{eq:['Box/Platform'],su:['Lunges','Bulgarian Split Squats'],de:"Step up onto box.",cu:["Drive through top foot","Full extension","Control down","Don't push off bottom"],mg:['Legs','Glutes']},
-"Jump Squats":{eq:[],su:['Box Jumps','Air Squats'],de:"Explosive squat jumps.",cu:["Deep squat","Explode up","Soft landing","Quick repeat"],mg:['Legs','Power']},
-"Air Squats":{eq:[],su:['Goblet Squats','Jump Squats'],de:"Bodyweight air squats.",cu:["Full depth","Chest up","Knees out","Drive up"],mg:['Legs']},
-"Mountain Climbers":{eq:[],su:['High Knees','Burpees'],de:"Plank position, drive knees rapidly.",cu:["Flat back","Fast knees","Core tight","Steady rhythm"],mg:['Core','Cardio']},
-"High Knees":{eq:[],su:['Mountain Climbers','Jump Rope','Assault Bike'],de:"Run in place, knees high.",cu:["Knees to hip height","Pump arms","Stay on toes","Fast pace"],mg:['Cardio','Legs']},
-"Jump Rope":{eq:[],su:['High Knees','Mountain Climbers','Assault Bike'],de:"Jump rope cardio.",cu:["Light on feet","Wrists turn rope","Steady rhythm","Eyes forward"],mg:['Cardio']},
-"Burpees":{eq:[],su:['Mountain Climbers','Jump Squats'],de:"Full body conditioning.",cu:["Chest to floor","Explosive jump","Full extension","Quick pace"],mg:['Full Body','Cardio']},
-"KB Swings":{eq:['Kettlebells'],su:['Jump Squats','Burpees','Dead Ball Slams'],de:"KB swing for hip power.",cu:["Hinge at hips","Snap hips forward","Arms are pendulum","Eye level"],mg:['Glutes','Cardio']},
-"Goblet Squats":{eq:['Dumbbells'],su:['Air Squats','Front Squat','Heel Elevated Goblet Squat'],de:"Hold DB at chest, squat deep.",cu:["Elbows between knees","Chest up","Deep squat","Knees out"],mg:['Legs','Quads']},
-"Planks":{eq:[],su:['Dead Bugs','Bird Dogs','TRX Planks'],de:"Forearm plank hold.",cu:["Neutral spine","Squeeze glutes","Breathe steadily","Don't sag"],mg:['Core']},
-"Dead Bugs":{eq:[],su:['Planks','Bird Dogs'],de:"Supine anti-extension core exercise.",cu:["Low back pressed down","Opposite arm/leg extend","Slow controlled","Breathe out on extend"],mg:['Core']},
-"Bird Dogs":{eq:[],su:['Planks','Dead Bugs'],de:"Quadruped opposite arm/leg extension.",cu:["Neutral spine","Extend opposite arm and leg","Hold briefly","Don't rotate hips"],mg:['Core']},
-"DB Shoulder Press":{eq:['Dumbbells'],su:['Standing DB Shoulder Press','KB Standing Shoulder Press','Shoulder Press Machine'],de:"Dumbbell shoulder press.",cu:["Core braced","Press to lockout","Control descent","Don't lean back"],mg:['Shoulders','Triceps']},
-"Standing DB Press":{eq:['Dumbbells'],su:['Standing DB Shoulder Press','KB Standing Shoulder Press'],de:"Standing dumbbell press.",cu:["Core tight","Press overhead","Full lockout","Don't lean back"],mg:['Shoulders','Triceps']},
-"Barbell Press":{eq:['Barbell'],su:['Standing Barbell Shoulder Press','Standing DB Shoulder Press'],de:"Barbell overhead press.",cu:["Core braced","Press overhead","Full lockout","Control down"],mg:['Shoulders','Triceps']},
-"KB Press":{eq:['Kettlebells'],su:['KB Standing Shoulder Press','Standing DB Shoulder Press'],de:"Kettlebell press.",cu:["Core braced","Press vertically","Full lockout","Control down"],mg:['Shoulders']},
-"V Squat":{eq:[],su:['Hack Squat','Goblet Squats'],de:"V-squat machine.",cu:["Feet shoulder width","Full depth","Drive through legs","Don't lock knees"],mg:['Legs','Quads']},
-"Cable Row":{eq:['Cable Machine'],su:['DB Rows','Barbell Rows','TRX Rows'],de:"Cable row.",cu:["Sit tall","Pull to chest","Squeeze back","Control return"],mg:['Back']},
-"Bodyweight Squats":{eq:[],su:['Air Squats','Goblet Squats'],de:"Bodyweight squats.",cu:["Full depth","Chest up","Knees out","Drive up"],mg:['Legs']},
-"Front Squats":{eq:['Barbell','Squat Rack'],su:['Front Squat','Goblet Squats'],de:"Front squat.",cu:["Elbows high","Upright torso","Full depth","Drive up"],mg:['Legs','Quads']},
-"Cable Pushdowns":{eq:['Cable Machine'],su:['Straight Bar Tricep Pushdown','Dips'],de:"Cable tricep pushdowns.",cu:["Elbows pinned","Full extension","Squeeze bottom","Control up"],mg:['Triceps']},
-"Straight Bar Pushdown":{eq:['Cable Machine'],su:['Straight Bar Tricep Pushdown','V Handle Tricep Pushdown'],de:"Straight bar pushdown.",cu:["Elbows pinned","Full extension","Squeeze bottom","Control up"],mg:['Triceps']},
-"Single Arm DB Rows":{eq:['Dumbbells'],su:['Single Arm DB Row','DB Rows','TRX Rows'],de:"Single arm DB rows.",cu:["Flat back","Pull to hip","Squeeze top","Control down"],mg:['Back','Biceps']},
-"Lat Pulldown Machine":{eq:['Cable Machine'],su:['Lat Pulldown','Pull Ups'],de:"Lat pulldown machine.",cu:["Full stretch","Pull to chest","Squeeze lats","Lean slightly back"],mg:['Back','Biceps']},
-"TRX Rows":{eq:['TRX Straps'],su:['Inverted Rows','DB Rows','Cable Rows'],de:"TRX suspension row. Adjustable difficulty by foot position.",cu:["Body straight","Pull chest to handles","Squeeze back","Control return"],mg:['Back','Biceps']},
-"TRX Split Squats":{eq:['TRX Straps'],su:['Bulgarian Split Squats','Lunges'],de:"Rear foot in TRX strap for split squat.",cu:["Front shin vertical","Upright torso","Full depth","Drive through front heel"],mg:['Legs','Glutes']},
-"TRX Planks":{eq:['TRX Straps'],su:['Planks','Yoga Ball Planks'],de:"Plank with feet in TRX straps for instability challenge.",cu:["Neutral spine","Core engaged","Don't sag","Breathe steady"],mg:['Core']},
-"TRX Dips":{eq:['TRX Straps'],su:['Dips','Bench Dips','Push Ups'],de:"Dips using TRX straps for instability challenge.",cu:["Lean slightly forward","Control descent","Full lockout","Core engaged"],mg:['Chest','Triceps']},
-"TRX Chest Press":{eq:['TRX Straps'],su:['Push Ups','DB Bench Press'],de:"Push-up variation using TRX handles.",cu:["Body straight","Full range","Core tight","Control movement"],mg:['Chest','Triceps']},
-"TRX Y-Raise":{eq:['TRX Straps'],su:['DB Lateral Raises','Band Lateral Raises'],de:"TRX Y-raise for shoulder stability and rear delts.",cu:["Arms form Y","Squeeze back","Control both directions","Core engaged"],mg:['Shoulders','Back']},
-"Assault Bike Intervals":{eq:['Assault Bike'],su:['Ski Erg','Rower','Battle Ropes'],de:"Assault bike sprint intervals.",cu:["Drive with legs","Push and pull arms","Max effort sprints","Active recovery between"],mg:['Cardio','Full Body']},
+"Machine Flys":{eq:[],su:['Cable Flys','DB Flys'],de:"Machine fly for chest.",cu:["Slight elbow bend","Squeeze center","Full stretch"],mg:['Chest']},
+"Cable Flys":{eq:['Cable Machine'],su:['Machine Flys','DB Flys'],de:"Cable crossover flys.",cu:["Slight elbow bend","Squeeze at center","Full stretch"],mg:['Chest']},
+"DB Flys":{eq:['Dumbbells','Bench'],su:['Cable Flys','Machine Flys'],de:"Dumbbell chest flys.",cu:["Slight elbow bend","Wide arc","Squeeze at top"],mg:['Chest']},
+"2 Cable Pullovers":{eq:['Cable Machine'],su:['DB Pullovers','Straight Arm Pulldowns'],de:"Cable pullover.",cu:["Slight elbow bend","Full stretch","Pull to hips"],mg:['Back','Chest']},
+"DB Pullovers":{eq:['Dumbbells','Bench'],su:['2 Cable Pullovers','Straight Arm Pulldowns'],de:"Dumbbell pullover.",cu:["Slight elbow bend","Full stretch overhead","Pull over to chest"],mg:['Back','Chest']},
+"Straight Arm Pulldowns":{eq:['Cable Machine'],su:['2 Cable Pullovers','DB Pullovers'],de:"Straight arm cable pulldown.",cu:["Arms straight","Pull to thighs","Squeeze lats"],mg:['Back']},
+"Dips":{eq:['Dip Station'],su:['Bench Dips','Push Ups','TRX Dips'],de:"Parallel bar dips.",cu:["Lean forward","Elbows 90","Full lockout"],mg:['Chest','Triceps']},
+"Bench Dips":{eq:['Bench'],su:['Dips','Push Ups','TRX Dips'],de:"Bench-supported dips.",cu:["Hands on bench edge","Elbows back","Full range"],mg:['Triceps']},
+"DB Incline Bench":{eq:['Dumbbells','Bench'],su:['Incline Barbell Press','Push Ups'],de:"Incline DB bench.",cu:["30-45 degree","Full stretch","Press up and in"],mg:['Chest','Shoulders']},
+"Incline Barbell Press":{eq:['Barbell','Bench'],su:['DB Incline Bench','Push Ups'],de:"Incline barbell bench.",cu:["30-45 degree","Bar to upper chest","Full lockout"],mg:['Chest','Shoulders']},
+"DB Chest Supported Rows":{eq:['Dumbbells','Bench'],su:['Barbell Rows','Cable Rows','TRX Rows'],de:"Chest supported DB rows.",cu:["Chest on bench","Pull to hips","Squeeze back"],mg:['Back']},
+"Straight Bar Tricep Pushdown":{eq:['Cable Machine'],su:['Rope Pushdown','Dips'],de:"Straight bar tricep pushdown.",cu:["Elbows pinned","Full extension","Squeeze bottom"],mg:['Triceps']},
+"Rope Pushdown":{eq:['Cable Machine'],su:['Straight Bar Tricep Pushdown','V Handle Tricep Pushdown'],de:"Rope tricep pushdown.",cu:["Elbows pinned","Split rope at bottom","Full extension"],mg:['Triceps']},
+"Machine Row":{eq:[],su:['Cable Rows','DB Rows','TRX Rows'],de:"Seated row machine.",cu:["Chest against pad","Pull to chest","Squeeze back"],mg:['Back']},
+"Tricep Press Machine":{eq:[],su:['Straight Bar Tricep Pushdown','Dips'],de:"Machine tricep press.",cu:["Elbows in","Full extension","Control return"],mg:['Triceps']},
+"Standing Barbell Shoulder Press":{eq:['Barbell'],su:['Standing DB Shoulder Press','KB Standing Shoulder Press'],de:"Standing barbell OHP.",cu:["Core braced","Press overhead","Full lockout"],mg:['Shoulders','Triceps']},
+"DB Curls":{eq:['Dumbbells'],su:['Barbell Curls','Cable Curls','Hammer Curls'],de:"DB bicep curls.",cu:["Control movement","Full range","Don't swing","Squeeze top"],mg:['Biceps']},
+"Barbell Curls":{eq:['Barbell'],su:['DB Curls','Cable Curls'],de:"Barbell bicep curls.",cu:["Elbows pinned","Full range","Don't swing"],mg:['Biceps']},
+"Cable Curls":{eq:['Cable Machine'],su:['DB Curls','Barbell Curls'],de:"Cable bicep curls.",cu:["Elbows pinned","Full range","Squeeze top"],mg:['Biceps']},
+"Hammer Curls":{eq:['Dumbbells'],su:['DB Curls','Cable Curls'],de:"Neutral grip DB curls targeting brachialis.",cu:["Neutral grip","Elbows pinned","Full range"],mg:['Biceps','Forearms']},
+"Tricep Extensions":{eq:['Cable Machine'],su:['Dips','DB Tricep Extensions'],de:"Cable tricep extensions.",cu:["Elbows pinned","Full extension","Squeeze bottom"],mg:['Triceps']},
+"Leg Press":{eq:['Leg Press'],su:['Hack Squat','Goblet Squats','Barbell Back Squat'],de:"Leg press machine.",cu:["Feet shoulder width","Full range","Don't lock knees"],mg:['Legs','Quads']},
+"SA DB Shoulder Press":{eq:['Dumbbells'],su:['Standing Barbell Shoulder Press','KB Standing Shoulder Press'],de:"Single arm DB shoulder press.",cu:["Core engaged","Press vertically","Don't lean"],mg:['Shoulders','Core']},
+"Lat Pulldown":{eq:['Cable Machine'],su:['Pull Ups','Band Pulldowns','TRX Rows'],de:"Lat pulldown.",cu:["Full stretch","Pull to chest","Squeeze lats"],mg:['Back','Biceps']},
+"DB Tricep Extensions":{eq:['Dumbbells'],su:['Tricep Extensions','Dips'],de:"Overhead DB tricep extensions.",cu:["Elbows close","Full stretch","Extend to lockout"],mg:['Triceps']},
+"Shoulder Press Machine":{eq:[],su:['Seated DB Shoulder Press','Standing Barbell Shoulder Press'],de:"Machine shoulder press.",cu:["Back against pad","Press to lockout","Control down"],mg:['Shoulders']},
+"Machine Press":{eq:[],su:['DB Bench Press','Barbell Flat Bench'],de:"Machine chest press.",cu:["Back against pad","Full range","Press to lockout"],mg:['Chest','Triceps']},
+"Hack Squat":{eq:[],su:['Leg Press','Goblet Squats','Barbell Back Squat'],de:"Hack squat machine.",cu:["Feet shoulder width","Full depth","Drive through legs"],mg:['Legs','Quads']},
+"V Handle Tricep Pushdown":{eq:['Cable Machine'],su:['Straight Bar Tricep Pushdown','Dips'],de:"V-handle tricep pushdown.",cu:["Elbows pinned","Full extension","Squeeze bottom"],mg:['Triceps']},
+"Seated Row":{eq:[],su:['Cable Rows','DB Rows','TRX Rows'],de:"Seated row machine.",cu:["Sit tall","Pull to chest","Squeeze back"],mg:['Back']},
+"Lunges":{eq:[],su:['Walking Lunges','Step-Ups','Bulgarian Split Squats'],de:"Bodyweight or weighted lunges.",cu:["Big step","Knee over ankle","Upright torso"],mg:['Legs','Glutes']},
+"Walking Lunges":{eq:[],su:['Lunges','Step-Ups','DB Walking Lunges'],de:"Walking forward lunges.",cu:["Big steps","Knee over ankle","Upright"],mg:['Legs','Glutes']},
+"Step-Ups":{eq:['Box/Platform'],su:['Lunges','Bulgarian Split Squats'],de:"Step up onto box.",cu:["Drive through top foot","Full extension","Control down"],mg:['Legs','Glutes']},
+"Jump Squats":{eq:[],su:['Box Jumps','Air Squats','BOSU Jump Squats'],de:"Explosive squat jumps.",cu:["Deep squat","Explode up","Soft landing"],mg:['Legs','Power']},
+"Air Squats":{eq:[],su:['Goblet Squats','Jump Squats'],de:"Bodyweight squats.",cu:["Full depth","Chest up","Knees out"],mg:['Legs']},
+"Mountain Climbers":{eq:[],su:['High Knees','Burpees'],de:"Plank position, drive knees rapidly.",cu:["Flat back","Fast knees","Core tight"],mg:['Core','Cardio']},
+"High Knees":{eq:[],su:['Mountain Climbers','Jump Rope','Assault Bike'],de:"Run in place, knees high.",cu:["Knees to hip height","Pump arms","Fast pace"],mg:['Cardio','Legs']},
+"Jump Rope":{eq:[],su:['High Knees','Mountain Climbers','Assault Bike'],de:"Jump rope cardio.",cu:["Light on feet","Wrists turn rope","Steady rhythm"],mg:['Cardio']},
+"Burpees":{eq:[],su:['Mountain Climbers','Jump Squats'],de:"Full body conditioning.",cu:["Chest to floor","Explosive jump","Quick pace"],mg:['Full Body','Cardio']},
+"KB Swings":{eq:['Kettlebells'],su:['Jump Squats','Burpees','Dead Ball Slams'],de:"KB swing for hip power.",cu:["Hinge at hips","Snap hips forward","Arms are pendulum"],mg:['Glutes','Cardio']},
+"Goblet Squats":{eq:['Dumbbells'],su:['Air Squats','Front Squat','Heel Elevated Goblet Squat'],de:"Hold DB at chest, squat deep.",cu:["Elbows between knees","Chest up","Deep squat"],mg:['Legs','Quads']},
+"Planks":{eq:[],su:['Dead Bugs','Bird Dogs','TRX Planks','BOSU Planks'],de:"Forearm plank hold.",cu:["Neutral spine","Squeeze glutes","Don't sag"],mg:['Core']},
+"Dead Bugs":{eq:[],su:['Planks','Bird Dogs'],de:"Supine anti-extension core.",cu:["Low back pressed down","Opposite arm/leg extend","Slow controlled"],mg:['Core']},
+"Bird Dogs":{eq:[],su:['Planks','Dead Bugs'],de:"Quadruped opposite arm/leg extension.",cu:["Neutral spine","Extend opposite arm and leg","Don't rotate"],mg:['Core']},
+"DB Shoulder Press":{eq:['Dumbbells'],su:['Standing DB Shoulder Press','KB Standing Shoulder Press','Shoulder Press Machine'],de:"Dumbbell shoulder press.",cu:["Core braced","Press to lockout","Don't lean back"],mg:['Shoulders','Triceps']},
+"Standing DB Press":{eq:['Dumbbells'],su:['Standing DB Shoulder Press','KB Standing Shoulder Press'],de:"Standing dumbbell press.",cu:["Core tight","Press overhead","Full lockout"],mg:['Shoulders','Triceps']},
+"Barbell Press":{eq:['Barbell'],su:['Standing Barbell Shoulder Press','Standing DB Shoulder Press'],de:"Barbell overhead press.",cu:["Core braced","Press overhead","Full lockout"],mg:['Shoulders','Triceps']},
+"KB Press":{eq:['Kettlebells'],su:['KB Standing Shoulder Press','Standing DB Shoulder Press'],de:"Kettlebell press.",cu:["Core braced","Press vertically","Full lockout"],mg:['Shoulders']},
+"Cable Row":{eq:['Cable Machine'],su:['DB Rows','Barbell Rows','TRX Rows'],de:"Cable row.",cu:["Sit tall","Pull to chest","Squeeze back"],mg:['Back']},
+"Bodyweight Squats":{eq:[],su:['Air Squats','Goblet Squats'],de:"Bodyweight squats.",cu:["Full depth","Chest up","Knees out"],mg:['Legs']},
+"Front Squats":{eq:['Barbell','Squat Rack'],su:['Front Squat','Goblet Squats'],de:"Front squat.",cu:["Elbows high","Upright torso","Full depth"],mg:['Legs','Quads']},
+"Cable Pushdowns":{eq:['Cable Machine'],su:['Straight Bar Tricep Pushdown','Dips'],de:"Cable tricep pushdowns.",cu:["Elbows pinned","Full extension"],mg:['Triceps']},
+"Straight Bar Pushdown":{eq:['Cable Machine'],su:['Straight Bar Tricep Pushdown','V Handle Tricep Pushdown'],de:"Straight bar pushdown.",cu:["Elbows pinned","Full extension"],mg:['Triceps']},
+"Single Arm DB Rows":{eq:['Dumbbells'],su:['Single Arm DB Row','DB Rows','TRX Rows'],de:"Single arm DB rows.",cu:["Flat back","Pull to hip","Squeeze top"],mg:['Back','Biceps']},
+"TRX Rows":{eq:['TRX Straps'],su:['Inverted Rows','DB Rows','Cable Rows'],de:"TRX suspension row.",cu:["Body straight","Pull chest to handles","Squeeze back"],mg:['Back','Biceps']},
+"TRX Split Squats":{eq:['TRX Straps'],su:['Bulgarian Split Squats','Lunges'],de:"Rear foot in TRX for split squat.",cu:["Front shin vertical","Upright torso","Full depth"],mg:['Legs','Glutes']},
+"TRX Planks":{eq:['TRX Straps'],su:['Planks','Yoga Ball Planks','BOSU Planks'],de:"Plank with feet in TRX straps.",cu:["Neutral spine","Core engaged","Don't sag"],mg:['Core']},
+"TRX Dips":{eq:['TRX Straps'],su:['Dips','Bench Dips','Push Ups'],de:"Dips using TRX straps.",cu:["Lean forward","Control descent","Full lockout"],mg:['Chest','Triceps']},
+"TRX Chest Press":{eq:['TRX Straps'],su:['Push Ups','DB Bench Press'],de:"Push-up on TRX handles.",cu:["Body straight","Full range","Core tight"],mg:['Chest','Triceps']},
+"TRX Y-Raise":{eq:['TRX Straps'],su:['DB Lateral Raises','Band Lateral Raises','Face Pulls'],de:"TRX Y-raise for shoulder stability.",cu:["Arms form Y","Squeeze back","Control both directions"],mg:['Shoulders','Back']},
+"Assault Bike Intervals":{eq:['Assault Bike'],su:['Ski Erg','Rower','Battle Ropes'],de:"Assault bike sprint intervals.",cu:["Drive with legs","Push and pull arms","Max effort"],mg:['Cardio','Full Body']},
+"Back Extensions":{eq:['Back Extension Machine'],su:['Superman Hold','Good Mornings','Reverse Hypers'],de:"Roman chair back extensions for posterior chain.",cu:["Neutral spine at top","Controlled descent","Squeeze glutes and erectors","Don't hyperextend"],mg:['Lower Back','Glutes','Hamstrings']},
+"Weighted Back Extensions":{eq:['Back Extension Machine'],su:['Back Extensions','Good Mornings'],de:"Back extensions holding weight.",cu:["Hold weight at chest","Neutral spine","Full range"],mg:['Lower Back','Glutes','Hamstrings']},
+"Superman Hold":{eq:[],su:['Back Extensions','Bird Dogs'],de:"Prone back extension hold.",cu:["Arms and legs extended","Squeeze glutes","Hold position"],mg:['Lower Back','Glutes']},
+"Good Mornings":{eq:['Barbell'],su:['Back Extensions','Romanian Deadlift'],de:"Barbell good morning.",cu:["Slight knee bend","Hinge at hips","Flat back"],mg:['Lower Back','Hamstrings','Glutes']},
+"Reverse Hypers":{eq:[],su:['Back Extensions','Superman Hold'],de:"Reverse hyperextension.",cu:["Upper body anchored","Swing legs up","Squeeze glutes"],mg:['Lower Back','Glutes']},
+"Romanian Deadlift":{eq:['Barbell'],su:['DB Romanian Deadlift','Good Mornings','Back Extensions'],de:"Stiff-leg barbell RDL.",cu:["Slight knee bend","Push hips back","Bar close to legs"],mg:['Hamstrings','Glutes','Lower Back']},
+"DB Romanian Deadlift":{eq:['Dumbbells'],su:['Romanian Deadlift','Good Mornings','Back Extensions'],de:"Dumbbell Romanian deadlift.",cu:["Slight knee bend","Push hips back","DBs close to legs"],mg:['Hamstrings','Glutes','Lower Back']},
+"Leg Curls":{eq:['Leg Curl/Extension Machine'],su:['DB Romanian Deadlift','Glute Bridge','Nordic Curls'],de:"Machine leg curls for hamstring isolation.",cu:["Full range","Squeeze at top","Control eccentric"],mg:['Hamstrings']},
+"Leg Extensions":{eq:['Leg Curl/Extension Machine'],su:['Goblet Squats','Air Squats','Step-Ups'],de:"Machine leg extensions for quad isolation.",cu:["Full extension","Squeeze at top","Control down"],mg:['Quads']},
+"Nordic Curls":{eq:[],su:['Leg Curls','DB Romanian Deadlift'],de:"Bodyweight eccentric hamstring curl.",cu:["Control descent","Fight gravity","Core tight"],mg:['Hamstrings']},
+"BOSU Planks":{eq:['BOSU Ball'],su:['Planks','TRX Planks','Yoga Ball Planks'],de:"Plank on BOSU ball.",cu:["Neutral spine","Grip dome edges","Core engaged"],mg:['Core']},
+"BOSU Jump Squats":{eq:['BOSU Ball'],su:['Jump Squats','Box Jumps'],de:"Jump squats landing on BOSU.",cu:["Soft landing on dome","Squat and explode","Balance on landing"],mg:['Legs','Power','Core']},
+"BOSU Single Leg Balance":{eq:['BOSU Ball'],su:['Single Leg RDL','TRX Split Squats'],de:"Single leg stand on BOSU.",cu:["Dome side up","Slight knee bend","Eyes forward"],mg:['Core','Legs']},
+"BOSU Push Ups":{eq:['BOSU Ball'],su:['Push Ups','TRX Chest Press'],de:"Push-ups on inverted BOSU.",cu:["Grip flat side","Core tight","Full range"],mg:['Chest','Triceps','Core']},
+"BOSU Squats":{eq:['BOSU Ball'],su:['Air Squats','Goblet Squats'],de:"Squats on BOSU dome for balance.",cu:["Dome side up","Slow controlled","Engage stabilizers"],mg:['Legs','Core']},
+"Single Leg RDL":{eq:['Dumbbells'],su:['DB Romanian Deadlift','BOSU Single Leg Balance'],de:"Single leg Romanian deadlift.",cu:["Hinge at hip","Back leg extends behind","Keep hips square"],mg:['Hamstrings','Glutes','Core']},
+"Face Pulls":{eq:['Cable Machine'],su:['TRX Y-Raise','Band Lateral Raises','Rear Delt Flys'],de:"Cable face pulls for rear delts.",cu:["Pull to face","External rotate","Squeeze back"],mg:['Shoulders','Back']},
+"Incline DB Curls":{eq:['Dumbbells','Bench'],su:['DB Curls','Cable Curls'],de:"Incline bench DB curls.",cu:["Let arms hang","Full stretch","Curl to shoulder"],mg:['Biceps']},
+"Overhead Cable Tricep Extension":{eq:['Cable Machine'],su:['DB Tricep Extensions','Straight Bar Tricep Pushdown'],de:"Overhead cable extension for long head tricep.",cu:["Face away from cable","Elbows by ears","Full stretch"],mg:['Triceps']},
+"Close Grip Bench Press":{eq:['Barbell','Bench'],su:['V Handle Tricep Pushdown','Dips'],de:"Narrow grip bench for triceps.",cu:["Hands shoulder width","Elbows tucked","Full lockout"],mg:['Triceps','Chest']},
+"EZ Bar Curls":{eq:['Barbell'],su:['DB Curls','Cable Curls'],de:"EZ bar curls for biceps.",cu:["Elbows pinned","Full range","Squeeze at top"],mg:['Biceps']},
+"DB Front Raises":{eq:['Dumbbells'],su:['Cable Lateral Raises','DB Lateral Raises'],de:"Front delt raises.",cu:["Alternate or together","To eye level","Don't swing"],mg:['Shoulders']},
+"Rear Delt Flys":{eq:['Dumbbells'],su:['Face Pulls','TRX Y-Raise'],de:"Bent over flys for rear delts.",cu:["Hinge forward","Lead with elbows","Squeeze at top"],mg:['Shoulders','Back']},
+"Preacher Curls":{eq:['Dumbbells','Bench'],su:['Incline DB Curls','Cable Curls'],de:"Preacher-style curls.",cu:["Arm on pad","Full range","Squeeze at top"],mg:['Biceps']},
+"Skull Crushers":{eq:['Barbell','Bench'],su:['DB Tricep Extensions','Overhead Cable Tricep Extension'],de:"Lying barbell tricep extension.",cu:["Lower to forehead","Elbows still","Full extension"],mg:['Triceps']},
+"Cable Woodchops":{eq:['Cable Machine'],su:['Russian Twists','Dead Ball Side-to-Side Slam'],de:"Rotational cable chop.",cu:["Rotate from core","Arms stay extended","Full range"],mg:['Core','Power']},
+"Single Arm DB Rows":{eq:['Dumbbells'],su:['Single Arm DB Row','DB Rows'],de:"Single arm DB rows.",cu:["Flat back","Pull to hip","Squeeze top"],mg:['Back','Biceps']},
 };
 
 const WP={
-cleanpress:{name:"Clean-Press Day",icon:"\u{1F3CB}",color:"#6366f1",
+cleanpress:{name:"Power Day",icon:"\u{1F3CB}",color:"#6366f1",
+ desc:{v1:{focus:"Strength \u2014 Heavy Compounds",muscles:"Full body with emphasis on posterior chain and shoulders. Heavy clean-press builds raw power while squats and pulls develop foundational strength.",tags:['Full Body','Shoulders','Back','Legs']},v2:{focus:"Hypertrophy \u2014 Volume & Accessories",muscles:"Higher rep full body with isolation work. Back extensions and curls complement main lifts for balanced development.",tags:['Full Body','Back','Arms','Core']},v3:{focus:"Conditioning \u2014 Circuits & Complexes",muscles:"Metabolic stress with KB complexes, battle ropes, and explosive movements. Builds work capacity and muscular endurance.",tags:['Full Body','Cardio','Power','Core']}},
  variations:[[
-  {n:"Barbell Deadlift-Clean-Press",s:4,r:"10-12",re:60},{n:"KB Suitcase Squats",s:4,r:"10-12",re:120},{n:"Battle Ropes",s:4,r:"30-60 sec",re:60},{n:"Bulgarian Split Squats",s:4,r:"10-12",re:60},{n:"Yoga Ball Planks",s:4,r:"30-60 sec",re:60},{n:"Dead Ball Side-to-Side Slam",s:4,r:"30-60 sec",re:60}
+  {n:"Barbell Deadlift-Clean-Press",s:4,r:"6-8",re:90},{n:"Barbell Back Squat",s:4,r:"6-8",re:120},{n:"Barbell Rows",s:4,r:"8-10",re:90},{n:"Pull Ups",s:4,r:"AMRAP",re:60},{n:"Weighted Back Extensions",s:3,r:"10-12",re:60},{n:"Farmer Walks",s:3,r:"30-60 sec",re:60}
  ],[
-  {n:"Barbell Deadlift-Clean-Press",s:4,r:"10-12",re:60},{n:"Box Jumps",s:4,r:"10-15",re:60},{n:"DB Walking Lunges",s:4,r:"10-12",re:60},{n:"Chin Ups",s:4,r:"AMRAP",re:60},{n:"Sled Rows",s:4,r:"10-12",re:60},{n:"Renegade Rows",s:4,r:"30-60 sec",re:60}
+  {n:"Barbell Deadlift-Clean-Press",s:4,r:"10-12",re:60},{n:"KB Suitcase Squats",s:4,r:"10-12",re:60},{n:"DB Chest Supported Rows",s:4,r:"10-12",re:60},{n:"Back Extensions",s:3,r:"12-15",re:45},{n:"Hammer Curls",s:3,r:"10-12",re:45},{n:"Yoga Ball Planks",s:3,r:"30-60 sec",re:45}
  ],[
-  {n:"Barbell Deadlift-Clean-Press",s:4,r:"8-10",re:60},{n:"Box Jumps",s:4,r:"10-15",re:60},{n:"DB Bench Press",s:4,r:"10-12",re:60},{n:"Tire Flips",s:4,r:"30-60 sec",re:60},{n:"Ski Erg",s:4,r:"100-300m",re:60},{n:"Push Ups",s:4,r:"10-15",re:60}
- ]],
- cf:{t:"Cardio Finisher",opts:[
-  {n:"Battle Ropes Tabata",d:"8 rounds: 20s work / 10s rest",eq:['Battle Ropes']},
-  {n:"Bodyweight Blitz",d:"3 rounds: 15 burpees, 20 mountain climbers, 25 jump squats",eq:[]},
-  {n:"Assault Bike Sprint",d:"5x30 sec max effort, 90s rest",eq:['Assault Bike']}
- ]}
+  {n:"KB Clean and Press",s:4,r:"30-60 sec",re:45},{n:"Battle Ropes",s:4,r:"30-60 sec",re:30},{n:"Box Jumps",s:4,r:"10-15",re:45},{n:"Dead Ball Slams",s:4,r:"30-60 sec",re:30},{n:"Renegade Rows",s:3,r:"30-60 sec",re:30},{n:"Mountain Climbers",s:3,r:"30-60 sec",re:30}
+ ]],cf:{t:"Cardio Finisher",opts:[{n:"Battle Ropes Tabata",d:"8 rounds: 20s work / 10s rest",eq:['Battle Ropes']},{n:"Bodyweight Blitz",d:"3 rounds: 15 burpees, 20 mountain climbers, 25 jump squats",eq:[]},{n:"Assault Bike Sprint",d:"5x30 sec max effort, 90s rest",eq:['Assault Bike']},{n:"Treadmill Hill Sprints",d:"8x30 sec incline sprint, 90s walk rest",eq:['Treadmill']}]}
 },
 squat:{name:"Squat Day",icon:"\u{1F9B5}",color:"#8b5cf6",
+ desc:{v1:{focus:"Strength \u2014 Heavy Squats",muscles:"Quad and glute dominant with heavy barbell work. Leg press and back squats build maximal lower body strength. Hip thrusters round out the posterior chain.",tags:['Quads','Glutes','Hamstrings']},v2:{focus:"Hypertrophy \u2014 Isolation & Volume",muscles:"Higher rep leg work with machine isolation. Leg extensions target quads, leg curls hit hamstrings, and hip thrusters isolate glutes.",tags:['Quads','Hamstrings','Glutes']},v3:{focus:"Power & Stability \u2014 Plyometrics",muscles:"Explosive lower body with box jumps, jump squats, and sled work. BOSU balance challenges stabilizers. Builds athletic power.",tags:['Legs','Power','Core','Stability']}},
  variations:[[
-  {n:"Hip Thruster Machine",s:4,r:"10-12",re:120},{n:"Single Arm Lat Pulldown",s:4,r:"10-12",re:60},{n:"Heel Elevated Goblet Squat",s:4,r:"10-15",re:60},{n:"Pull Ups",s:4,r:"AMRAP",re:60},{n:"Rower",s:4,r:"30-90 sec",re:60},{n:"Sled Rows",s:4,r:"15-25",re:60}
+  {n:"Barbell Back Squat",s:5,r:"5-6",re:150},{n:"Leg Press",s:4,r:"8-10",re:120},{n:"Hip Thruster Machine",s:4,r:"8-10",re:90},{n:"DB Walking Lunges",s:3,r:"10-12",re:60},{n:"Back Extensions",s:3,r:"10-12",re:60},{n:"Pull Ups",s:3,r:"AMRAP",re:60}
  ],[
-  {n:"Barbell Back Squat",s:4,r:"6-8",re:120},{n:"KB Bulgarian Split Squats",s:4,r:"10-12",re:60},{n:"KB Standing Shoulder Press",s:4,r:"10-12",re:60},{n:"Rower",s:3,r:"200m",re:60},{n:"Battle Ropes",s:3,r:"30-60 sec",re:60}
+  {n:"Heel Elevated Goblet Squat",s:4,r:"12-15",re:60},{n:"Leg Extensions",s:4,r:"12-15",re:45},{n:"Leg Curls",s:4,r:"12-15",re:45},{n:"Hip Thruster Machine",s:4,r:"10-12",re:60},{n:"Single Arm Lat Pulldown",s:3,r:"10-12",re:60},{n:"KB Walking Lunges",s:3,r:"10-12",re:60}
  ],[
-  {n:"Heel Elevated Barbell Back Squat",s:4,r:"6-8",re:120},{n:"Seated DB Shoulder Press",s:4,r:"10-12",re:60},{n:"DB Bulgarian Split Squats",s:4,r:"10-12",re:60},{n:"Rower",s:3,r:"200m",re:60},{n:"Battle Ropes",s:3,r:"30-60 sec",re:60}
- ]],
- cf:{t:"Cardio Finisher",opts:[
-  {n:"Rower Intervals",d:"5x250m row, 1 min rest",eq:['Rowing Machine']},
-  {n:"Bodyweight Burnout",d:"50 air squats, 40 lunges, 30 jump squats, 20 burpees",eq:[]},
-  {n:"Assault Bike Tabata",d:"8x20s max effort, 10s rest",eq:['Assault Bike']}
- ]}
+  {n:"Box Jumps",s:4,r:"8-10",re:60},{n:"BOSU Jump Squats",s:4,r:"10-12",re:60},{n:"Sled Pushes",s:4,r:"30-60 sec",re:90},{n:"KB Bulgarian Split Squats",s:3,r:"10-12",re:60},{n:"BOSU Single Leg Balance",s:3,r:"30 sec",re:30},{n:"Rower",s:3,r:"200m",re:60}
+ ]],cf:{t:"Cardio Finisher",opts:[{n:"Rower Intervals",d:"5x250m row, 1 min rest",eq:['Rowing Machine']},{n:"Bodyweight Burnout",d:"50 air squats, 40 lunges, 30 jump squats, 20 burpees",eq:[]},{n:"Assault Bike Tabata",d:"8x20s max effort, 10s rest",eq:['Assault Bike']},{n:"Treadmill Intervals",d:"6x400m at 8-10 mph, 1 min walk between",eq:['Treadmill']}]}
 },
 deadlift:{name:"Deadlift Day",icon:"\u{1F480}",color:"#ec4899",
+ desc:{v1:{focus:"Strength \u2014 Heavy Pulls",muscles:"Posterior chain focused: heavy hex bar deadlifts develop total-body pulling strength. Barbell rows and weighted back extensions build a bulletproof back.",tags:['Back','Hamstrings','Glutes','Traps']},v2:{focus:"Hypertrophy \u2014 Hamstrings & Back",muscles:"Volume for hamstrings and back. Romanian deadlifts, leg curls, and back extensions build posterior chain size. Lat work for width.",tags:['Hamstrings','Lower Back','Lats','Glutes']},v3:{focus:"Power \u2014 Explosive Pulls & Throws",muscles:"Explosive hip extension with dead ball throws, KB swings, and conditioning. Builds rate of force development.",tags:['Full Body','Power','Cardio','Core']}},
  variations:[[
-  {n:"Hex Bar Deadlift",s:4,r:"8-10",re:120},{n:"Battle Ropes",s:4,r:"30-60 sec",re:60},{n:"Standing DB Shoulder Press",s:4,r:"10-12",re:60},{n:"Box Jumps",s:4,r:"10-15",re:60},{n:"KB Walking Lunges",s:4,r:"10-12",re:60},{n:"Push Up/Dip Circuit",s:4,r:"30-60 sec",re:60}
+  {n:"Hex Bar Deadlift",s:5,r:"5-6",re:150},{n:"Barbell Rows",s:4,r:"6-8",re:90},{n:"Weighted Back Extensions",s:4,r:"8-10",re:60},{n:"Standing Barbell Shoulder Press",s:4,r:"6-8",re:90},{n:"Chin Ups",s:3,r:"AMRAP",re:60},{n:"Farmer Walks",s:3,r:"30-60 sec",re:60}
  ],[
-  {n:"Hex Bar Deadlift",s:4,r:"8-10",re:120},{n:"Over Shoulder Dead Ball Throws",s:4,r:"10-20",re:60},{n:"KB Bulgarian Split Squats",s:4,r:"10-12",re:60},{n:"Seated DB Shoulder Press",s:4,r:"10-12",re:60},{n:"Walking Lunges Plate Overhead",s:4,r:"10-12",re:60},{n:"DB Lateral Raises",s:4,r:"10-12",re:60}
+  {n:"DB Romanian Deadlift",s:4,r:"10-12",re:90},{n:"Leg Curls",s:4,r:"12-15",re:45},{n:"Back Extensions",s:4,r:"12-15",re:45},{n:"Lat Pulldown",s:4,r:"10-12",re:60},{n:"Seated DB Shoulder Press",s:3,r:"10-12",re:60},{n:"DB Lateral Raises",s:3,r:"12-15",re:45}
  ],[
-  {n:"Hex Bar Deadlift",s:4,r:"6-8",re:120},{n:"DB Flat Bench",s:4,r:"10-12",re:60},{n:"Heel Elevated Goblet Squats",s:4,r:"10-12",re:60},{n:"Ski Erg",s:4,r:"100-300m",re:60},{n:"Battle Ropes",s:4,r:"30-60 sec",re:60},{n:"Deadball Over-Shoulder Toss",s:4,r:"10-20",re:60}
- ]],
- cf:{t:"Cardio Finisher",opts:[
-  {n:"Sled Push + Pull",d:"4 rounds: push 40m, pull back, 1 min rest",eq:['Sled']},
-  {n:"Rower Pyramid",d:"100m, 200m, 300m, 200m, 100m with 1 min rest",eq:['Rowing Machine']},
-  {n:"Bodyweight EMOM",d:"10 min EMOM: 5 burpees + 10 mountain climbers",eq:[]}
- ]}
+  {n:"Hex Bar Deadlift",s:4,r:"6-8",re:120},{n:"Deadball Over-Shoulder Toss",s:4,r:"10-20",re:60},{n:"KB Swings",s:4,r:"30-60 sec",re:45},{n:"Battle Ropes",s:4,r:"30-60 sec",re:30},{n:"Ski Erg",s:3,r:"100-300m",re:60},{n:"BOSU Planks",s:3,r:"30-60 sec",re:30}
+ ]],cf:{t:"Cardio Finisher",opts:[{n:"Sled Push + Pull",d:"4 rounds: push 40m, pull back, 1 min rest",eq:['Sled']},{n:"Rower Pyramid",d:"100m, 200m, 300m, 200m, 100m with 1 min rest",eq:['Rowing Machine']},{n:"Bodyweight EMOM",d:"10 min EMOM: 5 burpees + 10 mountain climbers",eq:[]},{n:"Treadmill Incline Walk",d:"15 min at 3.5 mph, 12-15% incline",eq:['Treadmill']}]}
 },
-bench:{name:"Bench/Back Day",icon:"\u{1F3CB}\u{FE0F}\u{200D}\u{2642}\u{FE0F}",color:"#f59e0b",
+bench:{name:"Upper Body",icon:"\u{1F4AA}",color:"#f59e0b",
+ desc:{v1:{focus:"Strength \u2014 Heavy Press & Pull",muscles:"Push/pull balance with heavy barbell bench and weighted rows. Dips add tricep volume. Builds raw upper body strength.",tags:['Chest','Back','Triceps','Shoulders']},v2:{focus:"Hypertrophy \u2014 Chest, Back & Arms",muscles:"Higher rep pressing from multiple angles with incline work and flys. Cable work, TRX rows, and arm isolation for balanced size.",tags:['Chest','Back','Biceps','Triceps']},v3:{focus:"Power & Endurance \u2014 Push/Pull Circuits",muscles:"Explosive upper body with BOSU push-ups, battle ropes, and supersets. Builds muscular endurance alongside strength.",tags:['Chest','Back','Cardio','Power']}},
  variations:[[
-  {n:"Barbell Flat Bench",s:4,r:"8-12",re:120},{n:"Pull Ups",s:4,r:"AMRAP",re:60},{n:"Bulgarian Split Squats",s:4,r:"10-12",re:60},{n:"Battle Ropes",s:4,r:"30-60 sec",re:60},{n:"Ski Erg",s:4,r:"30-60 sec",re:60},{n:"Deadball Side Slams + Burpees",s:4,r:"30-60 sec",re:60}
+  {n:"Barbell Flat Bench",s:5,r:"5-6",re:150},{n:"Pull Ups",s:4,r:"AMRAP",re:90},{n:"DB Incline Bench",s:4,r:"8-10",re:60},{n:"Barbell Rows",s:4,r:"8-10",re:90},{n:"Dips",s:3,r:"8-12",re:60},{n:"Face Pulls",s:3,r:"12-15",re:45}
  ],[
-  {n:"Barbell Flat Bench",s:4,r:"8-12",re:120},{n:"Pull Ups",s:4,r:"AMRAP",re:60},{n:"Machine Flys",s:4,r:"12-15",re:60},{n:"2 Cable Pullovers",s:4,r:"12-15",re:60},{n:"Dips",s:3,r:"8-12",re:60},{n:"Rower",s:3,r:"100-300m",re:60}
+  {n:"DB Bench Press",s:4,r:"10-12",re:60},{n:"DB Chest Supported Rows",s:4,r:"10-12",re:60},{n:"DB Incline Bench",s:4,r:"10-12",re:60},{n:"Cable Flys",s:3,r:"12-15",re:45},{n:"Incline DB Curls",s:3,r:"10-12",re:45},{n:"Overhead Cable Tricep Extension",s:3,r:"10-12",re:45}
  ],[
-  {n:"Barbell Flat Bench",s:4,r:"6-10",re:120},{n:"Pull Ups",s:4,r:"AMRAP",re:60},{n:"DB Incline Bench",s:4,r:"8-12",re:60},{n:"DB Chest Supported Rows",s:4,r:"10-12",re:60},{n:"Straight Bar Tricep Pushdown",s:4,r:"10-12",re:60},{n:"Rower",s:3,r:"100-300m",re:60}
- ]],
- cf:{t:"Cardio Finisher",opts:[
-  {n:"Ski Erg + Rower Relay",d:"4 rounds: 150m ski, 150m row, 1 min rest",eq:['Rowing Machine','Ski Erg']},
-  {n:"Dips + Push-Up Ladder",d:"10-8-6-4-2 dips, 5-10-15-20-25 push-ups",eq:[]},
-  {n:"5 Min AMRAP",d:"5 burpees, 10 push-ups, 15 air squats - max rounds",eq:[]}
- ]}
+  {n:"Barbell Flat Bench",s:4,r:"8-10",re:90},{n:"Pull Ups",s:4,r:"AMRAP",re:60},{n:"BOSU Push Ups",s:3,r:"12-15",re:45},{n:"Battle Ropes",s:4,r:"30-60 sec",re:30},{n:"Ski Erg",s:3,r:"100-300m",re:60},{n:"Deadball Side Slams + Burpees",s:3,r:"30-60 sec",re:30}
+ ]],cf:{t:"Cardio Finisher",opts:[{n:"Ski Erg + Rower Relay",d:"4 rounds: 150m ski, 150m row, 1 min rest",eq:['Rowing Machine','Ski Erg']},{n:"Dips + Push-Up Ladder",d:"10-8-6-4-2 dips, 5-10-15-20-25 push-ups",eq:[]},{n:"5 Min AMRAP",d:"5 burpees, 10 push-ups, 15 air squats - max rounds",eq:[]},{n:"Treadmill Sprint Ladder",d:"30s, 45s, 60s, 45s, 30s sprints, walk between",eq:['Treadmill']}]}
 },
-extra:{name:"Extra Day",icon:"\u{26A1}",color:"#10b981",
+extra:{name:"Arms & Accessories",icon:"\u{26A1}",color:"#10b981",
+ desc:{v1:{focus:"Shoulders \u2014 Press & Raise",muscles:"Shoulder-focused: heavy overhead pressing, lateral raises, and rear delt work. Face pulls and back extensions for shoulder health.",tags:['Shoulders','Triceps','Back','Core']},v2:{focus:"Arms \u2014 Biceps & Triceps",muscles:"Dedicated arm training with supersets. Multiple bicep and tricep exercises from different angles for maximum growth.",tags:['Biceps','Triceps','Forearms']},v3:{focus:"Stability & Rehab \u2014 BOSU, TRX, Core",muscles:"Active recovery and weak-point training. BOSU balance, TRX stability, back extensions, and core. Builds resilience.",tags:['Core','Stability','Lower Back','Shoulders']}},
  variations:[[
-  {n:"Standing Barbell Shoulder Press",s:4,r:"8-10",re:60},{n:"DB Curls",s:4,r:"10-12",re:60},{n:"DB Bench Press",s:4,r:"10-12",re:60},{n:"DB Lateral Raises",s:4,r:"10-12",re:60},{n:"Machine Row",s:3,r:"10-12",re:60},{n:"Tricep Extensions",s:3,r:"10-12",re:60}
+  {n:"Standing Barbell Shoulder Press",s:4,r:"6-8",re:90},{n:"DB Lateral Raises",s:4,r:"12-15",re:45},{n:"Face Pulls",s:4,r:"12-15",re:45},{n:"Rear Delt Flys",s:3,r:"12-15",re:45},{n:"Back Extensions",s:3,r:"12-15",re:60},{n:"Cable Tricep Extension",s:3,r:"10-12",re:45}
  ],[
-  {n:"Leg Press",s:4,r:"10-12",re:60},{n:"SA DB Shoulder Press",s:4,r:"8-10",re:60},{n:"Lat Pulldown",s:4,r:"10-12",re:60},{n:"DB Tricep Extensions",s:4,r:"10-12",re:60},{n:"Shoulder Press Machine",s:3,r:"10-12",re:60},{n:"Cable Curls",s:3,r:"10-12",re:60}
+  {n:"Close Grip Bench Press",s:4,r:"8-10",re:90},{n:"EZ Bar Curls",s:4,r:"10-12",re:60},{n:"Overhead Cable Tricep Extension",s:4,r:"10-12",re:45},{n:"Incline DB Curls",s:3,r:"10-12",re:45},{n:"V Handle Tricep Pushdown",s:3,r:"10-12",re:45},{n:"Hammer Curls",s:3,r:"10-12",re:45}
  ],[
-  {n:"Hack Squat",s:3,r:"10-12",re:90},{n:"DB Bench Press",s:3,r:"10-12",re:60},{n:"Bulgarian Split Squats",s:3,r:"10-12",re:60},{n:"Lat Pulldown",s:3,r:"10-12",re:60},{n:"V Handle Tricep Pushdown",s:3,r:"10-12",re:60}
- ]],
- cf:{t:"Cardio Finisher",opts:[
-  {n:"Countdown Chipper",d:"100 mountain climbers, 75 jump squats, 50 lunges, 25 burpees",eq:[]},
-  {n:"4-Min Rounds x4",d:"Each round: 200m row, 10 burpees - rest between",eq:['Rowing Machine']},
-  {n:"15-Min AMRAP Ladder",d:"Start 4 reps: burpees, high knees, inchworms, v-ups - add 2 each round",eq:[]}
- ]}
+  {n:"TRX Rows",s:3,r:"12-15",re:45},{n:"TRX Chest Press",s:3,r:"12-15",re:45},{n:"BOSU Squats",s:3,r:"12-15",re:45},{n:"BOSU Planks",s:3,r:"30-60 sec",re:30},{n:"Back Extensions",s:3,r:"15-20",re:45},{n:"TRX Y-Raise",s:3,r:"12-15",re:45}
+ ]],cf:{t:"Cardio Finisher",opts:[{n:"Countdown Chipper",d:"100 mountain climbers, 75 jump squats, 50 lunges, 25 burpees",eq:[]},{n:"4-Min Rounds x4",d:"Each round: 200m row, 10 burpees - rest between",eq:['Rowing Machine']},{n:"15-Min AMRAP Ladder",d:"Start 4 reps: burpees, high knees, inchworms, v-ups - add 2 each round",eq:[]},{n:"Treadmill Jog",d:"20 min steady state at conversational pace",eq:['Treadmill']}]}
 }};
 
-// Detect unit from rep scheme
-function repUnit(r){if(!r)return'reps';const rl=r.toLowerCase();if(rl.includes('sec'))return'sec';if(rl.includes('m'))return'meters';return'reps'}
+const WEEK_PLAN=[
+ {day:'Monday',workout:'bench',label:'Upper Body'},
+ {day:'Tuesday',workout:'squat',label:'Squat Day'},
+ {day:'Wednesday',workout:null,label:'Rest / Active Recovery'},
+ {day:'Thursday',workout:'deadlift',label:'Deadlift Day'},
+ {day:'Friday',workout:'cleanpress',label:'Power Day'},
+ {day:'Saturday',workout:'extra',label:'Arms & Accessories'},
+ {day:'Sunday',workout:null,label:'Rest'}
+];
 
-function WorkoutTimer({startTime}){
- const[e,setE]=useState(0);
- useEffect(()=>{if(!startTime)return;const iv=setInterval(()=>setE(Math.floor((Date.now()-startTime)/1000)),1000);return()=>clearInterval(iv)},[startTime]);
- if(!startTime)return null;
- const m=Math.floor(e/60),s=e%60;
- return React.createElement('div',{style:{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',borderRadius:12,padding:'10px 16px',textAlign:'center'}},
-  React.createElement('div',{style:{fontSize:10,fontWeight:700,letterSpacing:2,opacity:.8}},'WORKOUT TIME'),
-  React.createElement('div',{style:{fontSize:28,fontWeight:800}},m+':'+s.toString().padStart(2,'0'))
- );
-}
+function repUnit(r){if(!r)return'reps';const rl=r.toLowerCase().trim();if(rl.includes('sec'))return'sec';if(/\dm$/.test(rl))return'meters';return'reps'}
 
-function TimerStopwatch({onClose}){
- const[mode,setMode]=useState('timer');
- const[tm,setTm]=useState(1);const[ts,setTs]=useState(0);const[tl,setTl]=useState(null);const[run,setRun]=useState(false);
- // Stopwatch state
- const[sw,setSw]=useState(0);const[swRun,setSwRun]=useState(false);const[swStart,setSwStart]=useState(null);
- useEffect(()=>{if(!run||tl===null||tl<=0){if(tl===0)setRun(false);return}const t=setTimeout(()=>setTl(v=>v-1),1000);return()=>clearTimeout(t)},[run,tl]);
- useEffect(()=>{if(!swRun||!swStart)return;const iv=setInterval(()=>setSw(Math.floor((Date.now()-swStart)/1000)),100);return()=>clearInterval(iv)},[swRun,swStart]);
- const startTimer=()=>{const t=tm*60+ts;if(t>0){setTl(t);setRun(true)}};
- const startSW=()=>{setSwStart(Date.now()-sw*1000);setSwRun(true)};
- const pauseSW=()=>{setSwRun(false)};
- const resetSW=()=>{setSw(0);setSwRun(false);setSwStart(null)};
- const d=tl!==null?tl:tm*60+ts;const dm=Math.floor(d/60),ds=d%60;
- const swm=Math.floor(sw/60),sws=sw%60;
- const h=React.createElement;
- return h('div',{style:{position:'fixed',bottom:80,right:16,zIndex:1001,background:'#1a1a2e',border:'2px solid #3b82f6',borderRadius:20,padding:20,boxShadow:'0 8px 32px rgba(59,130,246,0.3)',minWidth:230}},
-  h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
-   h('div',{style:{display:'flex',gap:4}},
-    h('button',{onClick:()=>setMode('timer'),style:{background:mode==='timer'?'#3b82f6':'#222',color:'#fff',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:700,minHeight:28}},'Timer'),
-    h('button',{onClick:()=>setMode('stopwatch'),style:{background:mode==='stopwatch'?'#3b82f6':'#222',color:'#fff',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:700,minHeight:28}},'Stopwatch')
-   ),
-   h('button',{onClick:onClose,style:{background:'none',color:'#666',fontSize:20,minHeight:'auto',padding:4}},'\u2715')
-  ),
-  mode==='timer'?(
-   tl===null?h('div',null,
-    h('div',{style:{display:'flex',gap:8,alignItems:'center',justifyContent:'center',marginBottom:16}},
-     h('div',null,h('div',{style:{fontSize:10,color:'#888',textAlign:'center',marginBottom:4}},'MIN'),h('select',{value:tm,onChange:e=>setTm(+e.target.value),style:{background:'#111',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',fontSize:20,fontWeight:700,width:60,textAlign:'center'}},[0,1,2,3,4,5].map(n=>h('option',{key:n,value:n},n)))),
-     h('span',{style:{fontSize:24,fontWeight:700,color:'#fff',marginTop:16}},':'),
-     h('div',null,h('div',{style:{fontSize:10,color:'#888',textAlign:'center',marginBottom:4}},'SEC'),h('select',{value:ts,onChange:e=>setTs(+e.target.value),style:{background:'#111',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',fontSize:20,fontWeight:700,width:60,textAlign:'center'}},[0,10,15,20,30,45].map(n=>h('option',{key:n,value:n},n.toString().padStart(2,'0')))))
-    ),
-    h('button',{onClick:startTimer,style:{width:'100%',background:'#3b82f6',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:14}},'Start')
-   ):h('div',{style:{textAlign:'center'}},
-    h('div',{style:{fontSize:48,fontWeight:800,color:tl===0?'#ef4444':'#fff',marginBottom:12}},dm+':'+ds.toString().padStart(2,'0')),
-    tl===0&&h('div',{style:{color:'#ef4444',fontWeight:700,marginBottom:12,fontSize:16}},'TIME!'),
-    h('div',{style:{display:'flex',gap:8}},
-     tl>0&&h('button',{onClick:()=>setRun(!run),style:{flex:1,background:run?'#f59e0b':'#22c55e',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},run?'Pause':'Resume'),
-     h('button',{onClick:()=>{setTl(null);setRun(false)},style:{flex:1,background:'#374151',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},'Reset')
-    )
-   )
-  ):h('div',{style:{textAlign:'center'}},
-   h('div',{style:{fontSize:48,fontWeight:800,color:'#fff',marginBottom:12}},swm+':'+sws.toString().padStart(2,'0')),
-   h('div',{style:{display:'flex',gap:8}},
-    !swRun?h('button',{onClick:startSW,style:{flex:1,background:'#22c55e',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},sw>0?'Resume':'Start'):h('button',{onClick:pauseSW,style:{flex:1,background:'#f59e0b',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},'Pause'),
-    h('button',{onClick:resetSW,style:{flex:1,background:'#374151',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},'Reset')
-   )
-  )
- );
-}
+function WorkoutTimer({startTime}){const[e,setE]=useState(0);useEffect(()=>{if(!startTime)return;const iv=setInterval(()=>setE(Math.floor((Date.now()-startTime)/1000)),1000);return()=>clearInterval(iv)},[startTime]);if(!startTime)return null;const m=Math.floor(e/60),s=e%60;return h('div',{style:{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',borderRadius:12,padding:'10px 16px',textAlign:'center'}},h('div',{style:{fontSize:10,fontWeight:700,letterSpacing:2,opacity:.8}},'WORKOUT TIME'),h('div',{style:{fontSize:28,fontWeight:800}},m+':'+s.toString().padStart(2,'0')));}
 
-function ExModal({name,prev,onClose}){
- const d=EX[name];const h=React.createElement;
- return h('div',{onClick:onClose,style:{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},
-  h('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'90vh',overflowY:'auto'}},
-   h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:16}},h('h2',{style:{fontSize:20,fontWeight:800}},name),h('button',{onClick:onClose,style:{background:'none',color:'#666',fontSize:24,minHeight:'auto'}},'\u2715')),
-   d?h(React.Fragment,null,
-    h('div',{style:{display:'flex',flexWrap:'wrap',gap:6,marginBottom:16}},d.mg.map(g=>h('span',{key:g,style:{background:'#6366f1',color:'#fff',padding:'4px 10px',borderRadius:20,fontSize:11,fontWeight:600}},g))),
-    h('p',{style:{color:'#ccc',marginBottom:16,lineHeight:1.6}},d.de),
-    prev&&prev.length>0&&h('div',{style:{background:'#111',borderRadius:12,padding:12,marginBottom:16}},
-     h('div',{style:{fontSize:11,fontWeight:700,color:'#60a5fa',letterSpacing:1,marginBottom:8}},'LAST TIME'),
-     h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},prev.filter(s=>s.weight||s.reps).map((s,i)=>h('span',{key:i,style:{background:'#1e1e3a',padding:'4px 10px',borderRadius:8,fontSize:13,fontWeight:600}},s.weight?(s.weight+(s.unit==='meters'?'m':'lbs')+' \u00d7 '+s.reps):(s.reps+(s.unit==='sec'?'s':s.unit==='meters'?'m':'')))))
-    ),
-    h('div',{style:{marginBottom:16}},h('div',{style:{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}},'FORM CUES'),d.cu.map((c,i)=>h('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,marginBottom:6}},h('span',{style:{color:'#22c55e',fontSize:14}},'\u2713'),h('span',{style:{color:'#ccc',fontSize:14}},c)))),
-    d.eq.length>0&&h('div',{style:{marginBottom:16}},h('div',{style:{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}},'EQUIPMENT'),h('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},d.eq.map(eq=>h('span',{key:eq,style:{background:'#1e1e3a',color:'#818cf8',padding:'4px 10px',borderRadius:20,fontSize:12,fontWeight:600}},eq)))),
-    d.su&&d.su.length>0&&h('div',{style:{marginBottom:16}},h('div',{style:{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}},'SUBSTITUTES'),h('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},d.su.map(s=>h('span',{key:s,style:{background:'#1e1e3a',color:'#888',padding:'4px 10px',borderRadius:20,fontSize:12}},s))))
-   ):h('p',{style:{color:'#888'}},'No additional info available for this exercise.'),
-   h('button',{onClick:onClose,style:{width:'100%',background:'#6366f1',color:'#fff',borderRadius:12,padding:14,fontWeight:700,fontSize:15}},'Got it')
-  )
- );
-}
+function TimerStopwatch({onClose}){const[mode,setMode]=useState('timer');const[tm,setTm]=useState(1);const[ts,setTs]=useState(0);const[tl,setTl]=useState(null);const[run,setRun]=useState(false);const[sw,setSw]=useState(0);const[swRun,setSwRun]=useState(false);const[swStart,setSwStart]=useState(null);useEffect(()=>{if(!run||tl===null||tl<=0){if(tl===0)setRun(false);return}const t=setTimeout(()=>setTl(v=>v-1),1000);return()=>clearTimeout(t)},[run,tl]);useEffect(()=>{if(!swRun||!swStart)return;const iv=setInterval(()=>setSw(Math.floor((Date.now()-swStart)/1000)),100);return()=>clearInterval(iv)},[swRun,swStart]);const startTimer=()=>{const t=tm*60+ts;if(t>0){setTl(t);setRun(true)}};const startSW=()=>{setSwStart(Date.now()-sw*1000);setSwRun(true)};const d=tl!==null?tl:tm*60+ts;const dm=Math.floor(d/60),ds=d%60;const swm=Math.floor(sw/60),sws=sw%60;return h('div',{style:{position:'fixed',bottom:80,right:16,zIndex:1001,background:'#1a1a2e',border:'2px solid #3b82f6',borderRadius:20,padding:20,boxShadow:'0 8px 32px rgba(59,130,246,0.3)',minWidth:230}},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},h('div',{style:{display:'flex',gap:4}},h('button',{onClick:()=>setMode('timer'),style:{background:mode==='timer'?'#3b82f6':'#222',color:'#fff',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:700,minHeight:28}},'Timer'),h('button',{onClick:()=>setMode('stopwatch'),style:{background:mode==='stopwatch'?'#3b82f6':'#222',color:'#fff',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:700,minHeight:28}},'Stopwatch')),h('button',{onClick:onClose,style:{background:'none',color:'#666',fontSize:20,minHeight:'auto',padding:4}},'\u2715')),mode==='timer'?(tl===null?h('div',null,h('div',{style:{display:'flex',gap:8,alignItems:'center',justifyContent:'center',marginBottom:16}},h('div',null,h('div',{style:{fontSize:10,color:'#888',textAlign:'center',marginBottom:4}},'MIN'),h('select',{value:tm,onChange:e=>setTm(+e.target.value),style:{background:'#111',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',fontSize:20,fontWeight:700,width:60,textAlign:'center'}},[0,1,2,3,4,5].map(n=>h('option',{key:n,value:n},n)))),h('span',{style:{fontSize:24,fontWeight:700,color:'#fff',marginTop:16}},':'),h('div',null,h('div',{style:{fontSize:10,color:'#888',textAlign:'center',marginBottom:4}},'SEC'),h('select',{value:ts,onChange:e=>setTs(+e.target.value),style:{background:'#111',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',fontSize:20,fontWeight:700,width:60,textAlign:'center'}},[0,10,15,20,30,45].map(n=>h('option',{key:n,value:n},n.toString().padStart(2,'0')))))),h('button',{onClick:startTimer,style:{width:'100%',background:'#3b82f6',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:14}},'Start')):h('div',{style:{textAlign:'center'}},h('div',{style:{fontSize:48,fontWeight:800,color:tl===0?'#ef4444':'#fff',marginBottom:12}},dm+':'+ds.toString().padStart(2,'0')),tl===0&&h('div',{style:{color:'#ef4444',fontWeight:700,marginBottom:12}},'TIME!'),h('div',{style:{display:'flex',gap:8}},tl>0&&h('button',{onClick:()=>setRun(!run),style:{flex:1,background:run?'#f59e0b':'#22c55e',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},run?'Pause':'Resume'),h('button',{onClick:()=>{setTl(null);setRun(false)},style:{flex:1,background:'#374151',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},'Reset')))):h('div',{style:{textAlign:'center'}},h('div',{style:{fontSize:48,fontWeight:800,marginBottom:12}},swm+':'+sws.toString().padStart(2,'0')),h('div',{style:{display:'flex',gap:8}},!swRun?h('button',{onClick:startSW,style:{flex:1,background:'#22c55e',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},sw>0?'Resume':'Start'):h('button',{onClick:()=>setSwRun(false),style:{flex:1,background:'#f59e0b',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},'Pause'),h('button',{onClick:()=>{setSw(0);setSwRun(false);setSwStart(null)},style:{flex:1,background:'#374151',color:'#fff',borderRadius:10,padding:10,fontWeight:700,fontSize:13}},'Reset'))));}
 
-function CardioSection({cf,sel,onSel,equip,cardioTime,setCardioTime}){
- const has=opt=>!opt.eq||opt.eq.length===0||opt.eq.every(e=>equip.includes(e));const h=React.createElement;
- return h('div',{style:{background:'#111',borderRadius:16,padding:20,marginBottom:16,border:'1px solid #222'}},
-  h('div',{style:{fontSize:12,fontWeight:700,color:'#f59e0b',letterSpacing:2,marginBottom:12}},'\u{1F525} '+cf.t.toUpperCase()),
-  h('div',{style:{fontSize:13,color:'#888',marginBottom:12}},'Pick one to finish strong:'),
-  h('div',{style:{display:'flex',flexDirection:'column',gap:8}},
-   cf.opts.map((opt,i)=>{const ok=has(opt);return h('button',{key:i,onClick:()=>ok&&onSel(i),style:{background:sel===i?'rgba(245,158,11,0.15)':'#1a1a2e',border:sel===i?'2px solid #f59e0b':'2px solid #222',borderRadius:12,padding:'12px 16px',textAlign:'left',opacity:ok?1:.4,cursor:ok?'pointer':'not-allowed'}},
-    h('div',{style:{fontWeight:700,fontSize:14,color:sel===i?'#f59e0b':'#e8e8e8',marginBottom:4}},opt.n),
-    h('div',{style:{fontSize:12,color:'#888'}},opt.d),
-    !ok&&h('div',{style:{fontSize:11,color:'#ef4444',marginTop:4}},'\u26A0\uFE0F Missing: '+opt.eq.filter(e=>!equip.includes(e)).join(', '))
-   )})
-  ),
-  sel!==null&&h('div',{style:{marginTop:12,display:'flex',gap:8,alignItems:'center'}},
-   h('div',{style:{fontSize:12,color:'#888',fontWeight:600}},'Time (optional):'),
-   h('input',{type:'text',value:cardioTime||'',onChange:e=>setCardioTime(e.target.value),placeholder:'e.g. 8:30',style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',width:100,textAlign:'center'}})
-  )
- );
-}
+function ExModal({name,prev,onClose}){const d=EX[name];return h('div',{onClick:onClose,style:{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},h('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'90vh',overflowY:'auto'}},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:16}},h('h2',{style:{fontSize:20,fontWeight:800}},name),h('button',{onClick:onClose,style:{background:'none',color:'#666',fontSize:24,minHeight:'auto'}},'\u2715')),d?h(React.Fragment,null,h('div',{style:{display:'flex',flexWrap:'wrap',gap:6,marginBottom:16}},d.mg.map(g=>h('span',{key:g,style:{background:'#6366f1',color:'#fff',padding:'4px 10px',borderRadius:20,fontSize:11,fontWeight:600}},g))),h('p',{style:{color:'#ccc',marginBottom:16,lineHeight:1.6}},d.de),prev&&prev.length>0&&h('div',{style:{background:'#111',borderRadius:12,padding:12,marginBottom:16}},h('div',{style:{fontSize:11,fontWeight:700,color:'#60a5fa',letterSpacing:1,marginBottom:8}},'LAST TIME'),h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},prev.filter(s=>s.weight||s.reps).map((s,i)=>h('span',{key:i,style:{background:'#1e1e3a',padding:'4px 10px',borderRadius:8,fontSize:13,fontWeight:600}},s.weight?(s.weight+'lbs \u00d7 '+s.reps):(s.reps+(s.unit==='sec'?'s':s.unit==='meters'?'m':'')))))),h('div',{style:{marginBottom:16}},h('div',{style:{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}},'FORM CUES'),d.cu.map((c,i)=>h('div',{key:i,style:{display:'flex',gap:8,marginBottom:6}},h('span',{style:{color:'#22c55e'}},'\u2713'),h('span',{style:{color:'#ccc',fontSize:14}},c)))),d.eq.length>0&&h('div',{style:{marginBottom:16}},h('div',{style:{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}},'EQUIPMENT'),h('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},d.eq.map(eq=>h('span',{key:eq,style:{background:'#1e1e3a',color:'#818cf8',padding:'4px 10px',borderRadius:20,fontSize:12,fontWeight:600}},eq)))),d.su&&d.su.length>0&&h('div',null,h('div',{style:{fontSize:12,fontWeight:700,color:'#818cf8',marginBottom:8}},'SUBSTITUTES'),h('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},d.su.map(s=>h('span',{key:s,style:{background:'#1e1e3a',color:'#888',padding:'4px 10px',borderRadius:20,fontSize:12}},s))))):h('p',{style:{color:'#888'}},'No additional info available.'),h('button',{onClick:onClose,style:{width:'100%',background:'#6366f1',color:'#fff',borderRadius:12,padding:14,fontWeight:700,fontSize:15,marginTop:16}},'Got it')));}
 
-function History({wk,onDel,onEdit,onClose}){
- const[ei,setEi]=useState(null);const[ed,setEd]=useState(null);const h=React.createElement;
- const startE=(w,i)=>{setEi(i);setEd(JSON.parse(JSON.stringify(w)))};
- const saveE=()=>{onEdit(ei,ed);setEi(null);setEd(null)};
- const upS=(exi,si,f,v)=>{setEd(p=>{const u=JSON.parse(JSON.stringify(p));u.exercises[exi].sets[si][f]=v;return u})};
- if(ei!==null&&ed)return h('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},
-  h('div',{style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:600,width:'100%',maxHeight:'90vh',overflowY:'auto'}},
-   h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:16}},h('h2',{style:{fontSize:20,fontWeight:800}},'Edit Workout'),h('button',{onClick:()=>setEi(null),style:{background:'none',color:'#666',fontSize:24,minHeight:'auto'}},'\u2715')),
-   h('div',{style:{fontWeight:700,marginBottom:4}},ed.name),
-   h('div',{style:{fontSize:13,color:'#888',marginBottom:16}},new Date(ed.date).toLocaleDateString()),
-   h('textarea',{value:ed.notes||'',onChange:e=>setEd({...ed,notes:e.target.value}),placeholder:'Notes...',style:{width:'100%',background:'#111',color:'#e8e8e8',border:'1px solid #333',borderRadius:8,padding:10,marginBottom:12},rows:2}),
-   ed.exercises&&ed.exercises.map((ex,exi)=>h('div',{key:exi,style:{background:'#111',borderRadius:12,padding:12,marginBottom:8}},
-    h('div',{style:{fontWeight:700,fontSize:14,marginBottom:8}},ex.name),
-    ex.sets&&ex.sets.map((s,si)=>h('div',{key:si,style:{display:'grid',gridTemplateColumns:'auto 1fr 1fr',gap:8,marginBottom:4,alignItems:'center'}},
-     h('span',{style:{color:'#818cf8',fontWeight:700,fontSize:13,width:24}},'S'+(si+1)),
-     h('input',{type:'number',value:s.weight||'',onChange:e=>upS(exi,si,'weight',e.target.value),placeholder:'lbs',style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:6,padding:'6px 8px',textAlign:'center'}}),
-     h('input',{type:'number',value:s.reps||'',onChange:e=>upS(exi,si,'reps',e.target.value),placeholder:'reps',style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:6,padding:'6px 8px',textAlign:'center'}})
-    ))
-   )),
-   h('div',{style:{display:'flex',gap:8,marginTop:16}},
-    h('button',{onClick:()=>setEi(null),style:{flex:1,background:'#374151',color:'#fff',borderRadius:12,padding:14,fontWeight:700}},'Cancel'),
-    h('button',{onClick:saveE,style:{flex:1,background:'#22c55e',color:'#fff',borderRadius:12,padding:14,fontWeight:700}},'Save')
-   )
-  ));
- return h('div',{onClick:onClose,style:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},
-  h('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:600,width:'100%',maxHeight:'90vh',overflowY:'auto'}},
-   h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:20}},h('h2',{style:{fontSize:22,fontWeight:800}},'Workout History'),h('button',{onClick:onClose,style:{background:'none',color:'#666',fontSize:24,minHeight:'auto'}},'\u2715')),
-   wk.length===0?h('p',{style:{textAlign:'center',color:'#666',padding:'40px 0'}},'No workouts yet!'):
-   wk.map((w,i)=>h('div',{key:i,style:{background:'#111',borderRadius:12,padding:16,marginBottom:8,border:'1px solid #1e1e1e'}},
-    h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:8}},
-     h('div',null,
-      h('div',{style:{fontWeight:700,fontSize:15}},w.name),
-      h('div',{style:{fontSize:12,color:'#888',marginTop:2}},new Date(w.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})),
-      w.duration!=null&&h('div',{style:{fontSize:12,color:'#6366f1',marginTop:2}},'\u23F1 '+w.duration+' min')
-     ),
-     h('div',{style:{display:'flex',gap:6}},
-      h('button',{onClick:()=>startE(w,i),style:{background:'#1e1e3a',color:'#60a5fa',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:700}},'Edit'),
-      h('button',{onClick:()=>{if(confirm('Delete?'))onDel(i)},style:{background:'#1e1e1e',color:'#ef4444',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:700}},'Del')
-     )
-    ),
-    w.prs&&w.prs.length>0&&h('div',{style:{marginBottom:8}},w.prs.map((pr,pi)=>h('div',{key:pi,style:{background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:8,padding:'6px 10px',fontSize:12,fontWeight:700,color:'#f59e0b',marginBottom:4}},'\u{1F3C6} '+pr))),
-    w.exercises&&w.exercises.map((ex,exi)=>h('div',{key:exi,style:{fontSize:13,marginBottom:4}},h('span',{style:{fontWeight:600}},ex.name+': '),h('span',{style:{color:'#888'}},ex.sets.filter(s=>s.weight||s.reps).map(s=>{const u=s.unit||'reps';if(s.weight)return s.weight+(u==='meters'?'m':'lbs')+'\u00d7'+s.reps;return s.reps+(u==='sec'?'s':u==='meters'?'m':'')}).join(', ')))),
-    w.cardioFinisher&&h('div',{style:{fontSize:12,color:'#f59e0b',marginTop:4}},'\u{1F525} '+w.cardioFinisher+(w.cardioTime?' \u2014 '+w.cardioTime:'')),
-    w.notes&&h('div',{style:{fontSize:12,color:'#888',fontStyle:'italic',marginTop:4}},w.notes)
-   ))
-  ));
-}
+function ExPicker({onPick,onClose,equip}){const[q,setQ]=useState('');const[filt,setFilt]=useState('all');const allMg=Array.from(new Set(Object.values(EX).flatMap(e=>e.mg))).sort();const filtered=Object.keys(EX).filter(n=>{if(q&&!n.toLowerCase().includes(q.toLowerCase()))return false;if(filt!=='all'&&!EX[n].mg.includes(filt))return false;return true}).sort();return h('div',{onClick:onClose,style:{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},h('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'90vh',overflowY:'auto'}},h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:12}},h('h2',{style:{fontSize:18,fontWeight:800}},'Choose Exercise'),h('button',{onClick:onClose,style:{background:'none',color:'#666',fontSize:24,minHeight:'auto'}},'\u2715')),h('input',{type:'text',value:q,onChange:e=>setQ(e.target.value),placeholder:'Search exercises...',style:{width:'100%',background:'#111',color:'#fff',border:'1px solid #333',borderRadius:10,padding:'10px 14px',marginBottom:10}}),h('div',{style:{display:'flex',gap:4,flexWrap:'wrap',marginBottom:12}},h('button',{onClick:()=>setFilt('all'),style:{background:filt==='all'?'#6366f1':'#222',color:'#fff',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,minHeight:28}},'All'),allMg.map(mg=>h('button',{key:mg,onClick:()=>setFilt(mg),style:{background:filt===mg?'#6366f1':'#222',color:'#fff',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,minHeight:28}},mg))),h('div',{style:{maxHeight:400,overflowY:'auto'}},filtered.map(name=>{const d=EX[name];const miss=d.eq.filter(e=>!equip.includes(e));return h('button',{key:name,onClick:()=>onPick(name),style:{display:'block',width:'100%',textAlign:'left',background:'#111',border:'1px solid #222',borderRadius:10,padding:'10px 14px',marginBottom:4,opacity:miss.length>0?.5:1}},h('div',{style:{fontWeight:600,fontSize:14,color:'#e8e8e8'}},name),h('div',{style:{fontSize:11,color:'#888',marginTop:2}},d.mg.join(', ')),miss.length>0&&h('div',{style:{fontSize:11,color:'#f59e0b',marginTop:2}},'\u26A0\uFE0F Missing: '+miss.join(', ')))}))));}
+
+function CardioSection({cf,sel,onSel,equip,cardioTime,setCardioTime}){const has=opt=>!opt.eq||opt.eq.length===0||opt.eq.every(e=>equip.includes(e));return h('div',{style:{background:'#111',borderRadius:16,padding:20,marginBottom:16,border:'1px solid #222'}},h('div',{style:{fontSize:12,fontWeight:700,color:'#f59e0b',letterSpacing:2,marginBottom:12}},'\u{1F525} '+cf.t.toUpperCase()),h('div',{style:{fontSize:13,color:'#888',marginBottom:12}},'Pick one to finish strong:'),h('div',{style:{display:'flex',flexDirection:'column',gap:8}},cf.opts.map((opt,i)=>{const ok=has(opt);return h('button',{key:i,onClick:()=>ok&&onSel(i),style:{background:sel===i?'rgba(245,158,11,0.15)':'#1a1a2e',border:sel===i?'2px solid #f59e0b':'2px solid #222',borderRadius:12,padding:'12px 16px',textAlign:'left',opacity:ok?1:.4,cursor:ok?'pointer':'not-allowed'}},h('div',{style:{fontWeight:700,fontSize:14,color:sel===i?'#f59e0b':'#e8e8e8',marginBottom:4}},opt.n),h('div',{style:{fontSize:12,color:'#888'}},opt.d),!ok&&h('div',{style:{fontSize:11,color:'#ef4444',marginTop:4}},'\u26A0\uFE0F Missing: '+opt.eq.filter(e=>!equip.includes(e)).join(', ')))})),sel!==null&&h('div',{style:{marginTop:12,display:'flex',gap:8,alignItems:'center'}},h('div',{style:{fontSize:12,color:'#888',fontWeight:600}},'Time:'),h('input',{type:'text',value:cardioTime||'',onChange:e=>setCardioTime(e.target.value),placeholder:'e.g. 8:30',style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'8px 12px',width:100,textAlign:'center'}})));}
+
+function Calendar({hist,onClose}){const[mo,setMo]=useState(new Date().getMonth());const[yr,setYr]=useState(new Date().getFullYear());const[selDay,setSelDay]=useState(null);const daysInMo=new Date(yr,mo+1,0).getDate();const firstDow=new Date(yr,mo,1).getDay();const today=new Date();const isToday=(d)=>d===today.getDate()&&mo===today.getMonth()&&yr===today.getFullYear();const workoutsOnDay=(d)=>{const ds=new Date(yr,mo,d).toDateString();return hist.filter(w=>new Date(w.date).toDateString()===ds)};const dayColor=(wks)=>{if(wks.length===0)return null;const n=wks[0].name.toLowerCase();if(n.includes('power'))return'#6366f1';if(n.includes('squat'))return'#8b5cf6';if(n.includes('deadlift'))return'#ec4899';if(n.includes('upper'))return'#f59e0b';if(n.includes('arms'))return'#10b981';return'#6366f1'};const prev=()=>{if(mo===0){setMo(11);setYr(yr-1)}else setMo(mo-1)};const next=()=>{if(mo===11){setMo(0);setYr(yr+1)}else setMo(mo+1)};const mN=['January','February','March','April','May','June','July','August','September','October','November','December'];const selWks=selDay?workoutsOnDay(selDay):[];return h('div',{onClick:onClose,style:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},h('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:400,width:'100%',maxHeight:'90vh',overflowY:'auto'}},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}},h('button',{onClick:prev,style:{background:'#222',color:'#fff',padding:'6px 12px',borderRadius:8,fontWeight:700,fontSize:16,minHeight:36}},'\u2039'),h('div',{style:{fontWeight:800,fontSize:18}},mN[mo]+' '+yr),h('button',{onClick:next,style:{background:'#222',color:'#fff',padding:'6px 12px',borderRadius:8,fontWeight:700,fontSize:16,minHeight:36}},'\u203A')),h('div',{style:{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:8}},['S','M','T','W','T','F','S'].map((d,i)=>h('div',{key:i,style:{textAlign:'center',fontSize:11,color:'#666',fontWeight:700,padding:4}},d))),h('div',{style:{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2}},Array(firstDow).fill(null).map((_,i)=>h('div',{key:'e'+i})),Array.from({length:daysInMo},(_,i)=>i+1).map(d=>{const wks=workoutsOnDay(d);const col=dayColor(wks);return h('button',{key:d,className:'cal-day'+(wks.length?' has-workout':'')+(isToday(d)?' today':''),onClick:()=>setSelDay(selDay===d?null:d),style:{border:selDay===d?'2px solid #6366f1':'2px solid transparent'}},h('span',null,d),col&&h('div',{className:'cal-dot',style:{background:col}}))})),selDay&&selWks.length>0&&h('div',{style:{marginTop:16,background:'#111',borderRadius:12,padding:16}},h('div',{style:{fontWeight:700,fontSize:14,marginBottom:8}},mN[mo]+' '+selDay),selWks.map((w,i)=>h('div',{key:i,style:{marginBottom:8}},h('div',{style:{fontWeight:700,fontSize:13}},w.name),w.duration&&h('span',{style:{fontSize:11,color:'#6366f1'}},'\u23F1 '+w.duration+' min'),w.prs&&w.prs.map((pr,pi)=>h('div',{key:pi,style:{fontSize:11,color:'#f59e0b',marginTop:2}},'\u{1F3C6} '+pr)),w.exercises&&w.exercises.map((ex,exi)=>h('div',{key:exi,style:{fontSize:12,color:'#888',marginTop:2}},ex.name+': '+ex.sets.filter(s=>s.weight||s.reps).map(s=>s.weight?s.weight+'\u00d7'+s.reps:s.reps).join(', '))),w.cardioFinisher&&h('div',{style:{fontSize:11,color:'#f59e0b',marginTop:2}},'\u{1F525} '+w.cardioFinisher+(w.cardioTime?' \u2014 '+w.cardioTime:''))))),selDay&&selWks.length===0&&h('div',{style:{marginTop:16,textAlign:'center',color:'#666',fontSize:13}},'Rest day'),h('button',{onClick:onClose,style:{width:'100%',background:'#374151',color:'#fff',borderRadius:12,padding:14,fontWeight:700,fontSize:14,marginTop:16}},'Close')));}
+
+function WeekPlan({onStart,onClose}){const today=new Date().getDay();return h('div',{onClick:onClose,style:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},h('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'90vh',overflowY:'auto'}},h('h2',{style:{fontSize:20,fontWeight:800,marginBottom:4}},'Weekly Plan'),h('p',{style:{fontSize:13,color:'#888',marginBottom:16}},'Recommended training split:'),WEEK_PLAN.map((wp,i)=>{const isToday=i===today;const prog=wp.workout?WP[wp.workout]:null;return h('div',{key:i,style:{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:isToday?'rgba(99,102,241,0.1)':'#111',border:isToday?'1px solid #6366f1':'1px solid #1e1e1e',borderRadius:12,marginBottom:6}},h('div',{style:{width:44,textAlign:'center'}},h('div',{style:{fontSize:11,fontWeight:700,color:isToday?'#818cf8':'#666'}},wp.day.slice(0,3).toUpperCase()),isToday&&h('div',{style:{fontSize:9,color:'#6366f1',fontWeight:700}},'TODAY')),h('div',{style:{flex:1}},h('div',{style:{fontWeight:700,fontSize:14,color:prog?'#e8e8e8':'#666'}},prog?prog.icon+' '+wp.label:wp.label),prog&&h('div',{style:{fontSize:11,color:'#888',marginTop:2}},'Strength \u2022 Hypertrophy \u2022 Power')),prog&&h('button',{onClick:()=>{onStart(wp.workout);onClose()},style:{background:prog.color,color:'#fff',padding:'6px 14px',borderRadius:8,fontWeight:700,fontSize:12}},'Go'))}),h('button',{onClick:onClose,style:{width:'100%',background:'#374151',color:'#fff',borderRadius:12,padding:14,fontWeight:700,fontSize:14,marginTop:12}},'Close')));}
+
+function History({wk,onDel,onEdit,onClose}){const[ei,setEi]=useState(null);const[ed,setEd]=useState(null);const startE=(w,i)=>{setEi(i);setEd(JSON.parse(JSON.stringify(w)))};const saveE=()=>{onEdit(ei,ed);setEi(null);setEd(null)};const upS=(exi,si,f,v)=>{setEd(p=>{const u=JSON.parse(JSON.stringify(p));u.exercises[exi].sets[si][f]=v;return u})};if(ei!==null&&ed)return h('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},h('div',{style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:600,width:'100%',maxHeight:'90vh',overflowY:'auto'}},h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:16}},h('h2',{style:{fontSize:20,fontWeight:800}},'Edit Workout'),h('button',{onClick:()=>setEi(null),style:{background:'none',color:'#666',fontSize:24,minHeight:'auto'}},'\u2715')),h('textarea',{value:ed.notes||'',onChange:e=>setEd({...ed,notes:e.target.value}),placeholder:'Notes...',style:{width:'100%',background:'#111',color:'#e8e8e8',border:'1px solid #333',borderRadius:8,padding:10,marginBottom:12},rows:2}),ed.exercises&&ed.exercises.map((ex,exi)=>h('div',{key:exi,style:{background:'#111',borderRadius:12,padding:12,marginBottom:8}},h('div',{style:{fontWeight:700,fontSize:14,marginBottom:8}},ex.name),ex.sets&&ex.sets.map((s,si)=>h('div',{key:si,style:{display:'grid',gridTemplateColumns:'auto 1fr 1fr',gap:8,marginBottom:4,alignItems:'center'}},h('span',{style:{color:'#818cf8',fontWeight:700,fontSize:13,width:24}},'S'+(si+1)),h('input',{type:'number',value:s.weight||'',onChange:e=>upS(exi,si,'weight',e.target.value),placeholder:'lbs',style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:6,padding:'6px 8px',textAlign:'center'}}),h('input',{type:'number',value:s.reps||'',onChange:e=>upS(exi,si,'reps',e.target.value),placeholder:'reps',style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:6,padding:'6px 8px',textAlign:'center'}}))))),h('div',{style:{display:'flex',gap:8,marginTop:16}},h('button',{onClick:()=>setEi(null),style:{flex:1,background:'#374151',color:'#fff',borderRadius:12,padding:14,fontWeight:700}},'Cancel'),h('button',{onClick:saveE,style:{flex:1,background:'#22c55e',color:'#fff',borderRadius:12,padding:14,fontWeight:700}},'Save'))));return h('div',{onClick:onClose,style:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},h('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:600,width:'100%',maxHeight:'90vh',overflowY:'auto'}},h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:20}},h('h2',{style:{fontSize:22,fontWeight:800}},'Workout History'),h('button',{onClick:onClose,style:{background:'none',color:'#666',fontSize:24,minHeight:'auto'}},'\u2715')),wk.length===0?h('p',{style:{textAlign:'center',color:'#666',padding:'40px 0'}},'No workouts yet!'):wk.slice(0,30).map((w,i)=>h('div',{key:i,style:{background:'#111',borderRadius:12,padding:16,marginBottom:8,border:'1px solid #1e1e1e'}},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:8}},h('div',null,h('div',{style:{fontWeight:700,fontSize:15}},w.name),h('div',{style:{fontSize:12,color:'#888',marginTop:2}},new Date(w.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})),w.duration!=null&&h('div',{style:{fontSize:12,color:'#6366f1',marginTop:2}},'\u23F1 '+w.duration+' min')),h('div',{style:{display:'flex',gap:6}},h('button',{onClick:()=>startE(w,i),style:{background:'#1e1e3a',color:'#60a5fa',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:700}},'Edit'),h('button',{onClick:()=>{if(confirm('Delete?'))onDel(i)},style:{background:'#1e1e1e',color:'#ef4444',padding:'6px 12px',borderRadius:8,fontSize:12,fontWeight:700}},'Del'))),w.prs&&w.prs.length>0&&h('div',{style:{marginBottom:6}},w.prs.map((pr,pi)=>h('div',{key:pi,style:{background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:8,padding:'4px 10px',fontSize:12,fontWeight:700,color:'#f59e0b',marginBottom:2}},'\u{1F3C6} '+pr))),w.exercises&&w.exercises.map((ex,exi)=>h('div',{key:exi,style:{fontSize:13,marginBottom:2}},h('span',{style:{fontWeight:600}},ex.name+': '),h('span',{style:{color:'#888'}},ex.sets.filter(s=>s.weight||s.reps).map(s=>s.weight?s.weight+'\u00d7'+s.reps:s.reps).join(', ')))),w.cardioFinisher&&h('div',{style:{fontSize:12,color:'#f59e0b',marginTop:4}},'\u{1F525} '+w.cardioFinisher+(w.cardioTime?' \u2014 '+w.cardioTime:''))))));}
 
 function App(){
  const[day,setDay]=useState(null);const[vi,setVi]=useState(0);const[equip,setEquip]=useState([]);const[showEq,setShowEq]=useState(false);
- const[hist,setHist]=useState([]);const[showHist,setShowHist]=useState(false);const[cw,setCw]=useState(null);const[selEx,setSelEx]=useState(null);
+ const[hist,setHist]=useState([]);const[showHist,setShowHist]=useState(false);const[showCal,setShowCal]=useState(false);const[showPlan,setShowPlan]=useState(false);
+ const[cw,setCw]=useState(null);const[selEx,setSelEx]=useState(null);const[exPicker,setExPicker]=useState(null);
  const[notes,setNotes]=useState('');const[st,setSt]=useState(null);const[started,setStarted]=useState(false);const[showTimer,setShowTimer]=useState(false);
  const[swapped,setSwapped]=useState({});const[selCardio,setSelCardio]=useState(null);const[prs,setPrs]=useState([]);const[cardioTime,setCardioTime]=useState('');
 
- useEffect(()=>{const e=ST.get('equipment');const h=ST.get('workoutHistory');if(e)setEquip(e);if(h)setHist(h)},[]);
+ useEffect(()=>{const e=ST.get('equipment');const hh=ST.get('workoutHistory');if(e)setEquip(e);if(hh)setHist(hh)},[]);
  const saveEq=()=>{ST.set('equipment',equip);setShowEq(false)};
  const togEq=item=>setEquip(p=>p.includes(item)?p.filter(e=>e!==item):[...p,item]);
-
- const selDay=dk=>{setDay(dk);setVi(0);setStarted(false);setSt(null);setSwapped({});setSelCardio(null);setNotes('');setCardioTime('');initW(dk,0)};
- const initW=(dk,v)=>{const exs=WP[dk].variations[v].map(ex=>{const unit=repUnit(ex.r);return{...ex,name:ex.n,unit,sets:Array(ex.s).fill(null).map(()=>({weight:'',reps:'',completed:false,unit}))}});setCw({exercises:exs})};
+ const selDay_=dk=>{setDay(dk);setVi(0);setStarted(false);setSt(null);setSwapped({});setSelCardio(null);setNotes('');setCardioTime('');initW(dk,0)};
+ const initW=(dk,v)=>{const exs=WP[dk].variations[v].map(ex=>{const unit=repUnit(ex.r);const exd=EX[ex.n];const wt=exd&&exd.wt;return{...ex,name:ex.n,unit,wt,sets:Array(ex.s).fill(null).map(()=>({weight:'',reps:'',completed:false,unit}))}});setCw({exercises:exs})};
  const chgVar=v=>{setVi(v);setSwapped({});initW(day,v)};
  const startW=()=>{setStarted(true);setSt(Date.now())};
-
  const upSet=(ei,si,f,v)=>{setCw(p=>{const u=JSON.parse(JSON.stringify(p));u.exercises[ei].sets[si][f]=v;return u})};
  const togSet=(ei,si)=>{setCw(p=>{const u=JSON.parse(JSON.stringify(p));u.exercises[ei].sets[si].completed=!u.exercises[ei].sets[si].completed;return u})};
-
+ const addSet=(ei)=>{setCw(p=>{const u=JSON.parse(JSON.stringify(p));const unit=u.exercises[ei].unit||'reps';u.exercises[ei].sets.push({weight:'',reps:'',completed:false,unit});return u})};
  const chkEq=name=>{const d=EX[name];if(!d||!d.eq||d.eq.length===0)return{ok:true,miss:[]};const miss=d.eq.filter(e=>!equip.includes(e));return{ok:miss.length===0,miss}};
-
- // Swap: gather ALL known subs from current exercise, its subs' subs, and the original
- const swapEx=exIdx=>{
-  const curName=swapped[exIdx]||WP[day].variations[vi][exIdx].n;
-  const origName=WP[day].variations[vi][exIdx].n;
-  const d=EX[curName];
-  // Collect all possible swaps: current exercise's subs + original name
-  const pool=new Set();
-  if(d&&d.su)d.su.forEach(s=>pool.add(s));
-  pool.add(origName);
-  // Also add subs from the original exercise
-  const origD=EX[origName];
-  if(origD&&origD.su)origD.su.forEach(s=>pool.add(s));
-  pool.delete(curName);
-  // Filter to only those that exist in EX
-  const opts=[...pool].filter(n=>EX[n]);
-  if(opts.length===0)return;
-  const next=opts[0];
-  setSwapped(p=>({...p,[exIdx]:next}));
-  const oe=WP[day].variations[vi][exIdx];const unit=repUnit(oe.r);
-  setCw(p=>{const u=JSON.parse(JSON.stringify(p));u.exercises[exIdx]={name:next,n:next,unit,sets:Array(oe.s).fill(null).map(()=>({weight:'',reps:'',completed:false,unit})),s:oe.s,r:oe.r,re:oe.re};return u});
- };
-
+ const swapEx=exIdx=>{const curName=swapped[exIdx]||WP[day].variations[vi][exIdx].n;const origName=WP[day].variations[vi][exIdx].n;const d=EX[curName];const origD=EX[origName];const pool=new Set();pool.add(origName);if(origD&&origD.su)origD.su.forEach(s=>pool.add(s));if(d&&d.su)d.su.forEach(s=>pool.add(s));const opts=[...pool].filter(n=>EX[n]);if(opts.length<=1)return;const ci=opts.indexOf(curName);const next=opts[(ci+1)%opts.length];applySwap(exIdx,next);};
+ const applySwap=(exIdx,name)=>{setSwapped(p=>({...p,[exIdx]:name}));const oe=WP[day].variations[vi][exIdx];const unit=repUnit(oe.r);const exd=EX[name];const wt=exd&&exd.wt;setCw(p=>{const u=JSON.parse(JSON.stringify(p));u.exercises[exIdx]={name,n:name,unit,wt,sets:Array(oe.s).fill(null).map(()=>({weight:'',reps:'',completed:false,unit})),s:oe.s,r:oe.r,re:oe.re};return u});setExPicker(null)};
  const getPrev=name=>{for(let w of hist){const ex=w.exercises&&w.exercises.find(e=>e.name===name);if(ex&&ex.sets)return ex.sets}return null};
  const bestVol=name=>{let b=0;for(let w of hist){const ex=w.exercises&&w.exercises.find(e=>e.name===name);if(ex&&ex.sets){const v=ex.sets.reduce((s,x)=>s+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0);if(v>b)b=v}}return b};
  const bestWt=name=>{let b=0;for(let w of hist){const ex=w.exercises&&w.exercises.find(e=>e.name===name);if(ex&&ex.sets)for(let s of ex.sets){const w2=parseFloat(s.weight)||0;if(w2>b)b=w2}}return b};
-
- const complete=()=>{
-  if(!cw||!day)return;
-  const dur=st?Math.round((Date.now()-st)/60000):null;const prog=WP[day];const newPR=[];
-  for(let ex of cw.exercises){
-   const pv=bestVol(ex.name);const pw=bestWt(ex.name);
-   const cv=ex.sets.reduce((s,x)=>s+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0);
-   const cw2=Math.max(...ex.sets.map(s=>parseFloat(s.weight)||0));
-   if(cv>pv&&pv>0)newPR.push(ex.name+' \u2014 new volume record!');
-   else if(cw2>pw&&pw>0)newPR.push(ex.name+' \u2014 new weight PR: '+cw2+'lbs!');
-  }
-  const wo={date:new Date().toISOString(),name:prog.name+' (V'+(vi+1)+')',exercises:cw.exercises.map(ex=>({name:ex.name,sets:ex.sets})),duration:dur,notes:notes,cardioFinisher:selCardio!==null?prog.cf.opts[selCardio].n:null,cardioTime:cardioTime||null,prs:newPR.length>0?newPR:null};
-  const nh=[wo,...hist];setHist(nh);ST.set('workoutHistory',nh);
-  if(newPR.length>0){setPrs(newPR);setTimeout(()=>setPrs([]),4500)}
-  setDay(null);setCw(null);setNotes('');setSt(null);setStarted(false);setSwapped({});setSelCardio(null);setCardioTime('');
- };
-
+ const complete=()=>{if(!cw||!day)return;const dur=st?Math.round((Date.now()-st)/60000):null;const prog=WP[day];const newPR=[];for(let ex of cw.exercises){const pv=bestVol(ex.name);const pw=bestWt(ex.name);const cv=ex.sets.reduce((s,x)=>s+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0);const cw2=Math.max(...ex.sets.map(s=>parseFloat(s.weight)||0));if(cv>pv&&pv>0)newPR.push(ex.name+' \u2014 new volume record!');else if(cw2>pw&&pw>0)newPR.push(ex.name+' \u2014 new weight PR: '+cw2+'lbs!');}const wo={date:new Date().toISOString(),name:prog.name+' (V'+(vi+1)+')',exercises:cw.exercises.map(ex=>({name:ex.name,sets:ex.sets})),duration:dur,notes,cardioFinisher:selCardio!==null?prog.cf.opts[selCardio].n:null,cardioTime:cardioTime||null,prs:newPR.length>0?newPR:null};const nh=[wo,...hist];setHist(nh);ST.set('workoutHistory',nh);if(newPR.length>0){setPrs(newPR);setTimeout(()=>setPrs([]),4500)}setDay(null);setCw(null);setNotes('');setSt(null);setStarted(false);setSwapped({});setSelCardio(null);setCardioTime('')};
  const delW=i=>{const nh=hist.filter((_,j)=>j!==i);setHist(nh);ST.set('workoutHistory',nh)};
  const editW=(i,d)=>{const nh=[...hist];nh[i]=d;setHist(nh);ST.set('workoutHistory',nh)};
 
- const h=React.createElement;
-
  if(!day){
-  return h('div',{style:{minHeight:'100vh',background:'#0a0a0a',padding:16}},
-   h('div',{style:{maxWidth:600,margin:'0 auto'}},
-    prs.map((m,i)=>h('div',{key:i,className:'pr-banner'},'\u{1F3C6} NEW PR! '+m)),
-    h('div',{style:{textAlign:'center',padding:'32px 0 24px'}},h('h1',{style:{fontSize:28,fontWeight:800}},'Workout Tracker'),h('p',{style:{color:'#666',fontSize:13,marginTop:4}},'Train hard. Track everything.')),
-    h('div',{style:{display:'flex',gap:8,marginBottom:20}},
-     h('button',{onClick:()=>setShowEq(true),style:{flex:1,background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:14,fontWeight:700,fontSize:14}},'\u2699\uFE0F Equipment'),
-     h('button',{onClick:()=>setShowHist(true),style:{flex:1,background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:14,fontWeight:700,fontSize:14}},'\u{1F4CA} History')
-    ),
-    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:24}},
-     h('div',{style:{background:'linear-gradient(135deg,#6366f1,#4f46e5)',borderRadius:14,padding:16,textAlign:'center'}},h('div',{style:{fontSize:28,fontWeight:800}},hist.length),h('div',{style:{fontSize:11,opacity:.8,fontWeight:600}},'Total')),
-     h('div',{style:{background:'linear-gradient(135deg,#8b5cf6,#7c3aed)',borderRadius:14,padding:16,textAlign:'center'}},h('div',{style:{fontSize:28,fontWeight:800}},hist.filter(w=>{const d=new Date();d.setDate(d.getDate()-7);return new Date(w.date)>d}).length),h('div',{style:{fontSize:11,opacity:.8,fontWeight:600}},'This Week')),
-     h('div',{style:{background:'linear-gradient(135deg,#ec4899,#db2777)',borderRadius:14,padding:16,textAlign:'center'}},h('div',{style:{fontSize:28,fontWeight:800}},equip.length),h('div',{style:{fontSize:11,opacity:.8,fontWeight:600}},'Equipment'))
-    ),
-    h('div',{style:{marginBottom:24}},
-     h('h2',{style:{fontSize:16,fontWeight:700,marginBottom:12,color:'#888'}},'START WORKOUT'),
-     h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
-      Object.entries(WP).map(([k,p])=>h('button',{key:k,onClick:()=>selDay(k),style:{background:'#111',border:'1px solid #222',borderRadius:16,padding:'20px 16px',textAlign:'left',gridColumn:k==='extra'?'1/3':undefined}},
-       h('div',{style:{fontSize:24,marginBottom:6}},p.icon),h('div',{style:{fontWeight:700,fontSize:15,color:'#e8e8e8'}},p.name),h('div',{style:{fontSize:11,color:'#666',marginTop:2}},p.variations.length+' variations')
-      ))
-     )
-    ),
-    showEq&&h('div',{onClick:()=>setShowEq(false),style:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},
-     h('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'80vh',overflowY:'auto'}},
-      h('h2',{style:{fontSize:20,fontWeight:800,marginBottom:16}},'My Equipment'),
-      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:16}},
-       allEquipment.map(item=>h('label',{key:item,style:{display:'flex',alignItems:'center',padding:'10px 12px',background:equip.includes(item)?'rgba(99,102,241,.15)':'#111',border:equip.includes(item)?'1px solid #6366f1':'1px solid #222',borderRadius:10,cursor:'pointer'}},
-        h('input',{type:'checkbox',checked:equip.includes(item),onChange:()=>togEq(item),style:{marginRight:8}}),h('span',{style:{fontSize:13,fontWeight:500}},item)
-       ))
-      ),
-      h('button',{onClick:saveEq,style:{width:'100%',background:'#22c55e',color:'#fff',borderRadius:12,padding:14,fontWeight:700,fontSize:15}},'Save Equipment')
-     )
-    ),
-    showHist&&h(History,{wk:hist,onDel:delW,onEdit:editW,onClose:()=>setShowHist(false)})
-   )
-  );
+  return h('div',{style:{minHeight:'100vh',background:'#0a0a0a',padding:16}},h('div',{style:{maxWidth:600,margin:'0 auto'}},
+   prs.map((m,i)=>h('div',{key:i,className:'pr-banner'},'\u{1F3C6} NEW PR! '+m)),
+   h('div',{style:{textAlign:'center',padding:'32px 0 24px'}},h('h1',{style:{fontSize:28,fontWeight:800}},'Workout Tracker'),h('p',{style:{color:'#666',fontSize:13,marginTop:4}},'Train hard. Track everything.')),
+   h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6,marginBottom:20}},
+    h('button',{onClick:()=>setShowEq(true),style:{background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:'10px 6px',fontWeight:700,fontSize:12}},'\u2699\uFE0F Equip'),
+    h('button',{onClick:()=>setShowHist(true),style:{background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:'10px 6px',fontWeight:700,fontSize:12}},'\u{1F4CA} History'),
+    h('button',{onClick:()=>setShowCal(true),style:{background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:'10px 6px',fontWeight:700,fontSize:12}},'\u{1F4C5} Calendar'),
+    h('button',{onClick:()=>setShowPlan(true),style:{background:'#111',border:'1px solid #222',color:'#e8e8e8',borderRadius:12,padding:'10px 6px',fontWeight:700,fontSize:12}},'\u{1F4CB} Plan')),
+   h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:24}},
+    h('div',{style:{background:'linear-gradient(135deg,#6366f1,#4f46e5)',borderRadius:14,padding:16,textAlign:'center'}},h('div',{style:{fontSize:28,fontWeight:800}},hist.length),h('div',{style:{fontSize:11,opacity:.8,fontWeight:600}},'Total')),
+    h('div',{style:{background:'linear-gradient(135deg,#8b5cf6,#7c3aed)',borderRadius:14,padding:16,textAlign:'center'}},h('div',{style:{fontSize:28,fontWeight:800}},hist.filter(w=>{const d=new Date();d.setDate(d.getDate()-7);return new Date(w.date)>d}).length),h('div',{style:{fontSize:11,opacity:.8,fontWeight:600}},'This Week')),
+    h('div',{style:{background:'linear-gradient(135deg,#ec4899,#db2777)',borderRadius:14,padding:16,textAlign:'center'}},h('div',{style:{fontSize:28,fontWeight:800}},equip.length),h('div',{style:{fontSize:11,opacity:.8,fontWeight:600}},'Equipment'))),
+   h('div',{style:{marginBottom:24}},h('h2',{style:{fontSize:16,fontWeight:700,marginBottom:12,color:'#888'}},'START WORKOUT'),
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},Object.entries(WP).map(([k,p])=>h('button',{key:k,onClick:()=>selDay_(k),style:{background:'#111',border:'1px solid #222',borderRadius:16,padding:'20px 16px',textAlign:'left',gridColumn:k==='extra'?'1/3':undefined}},h('div',{style:{fontSize:24,marginBottom:6}},p.icon),h('div',{style:{fontWeight:700,fontSize:15,color:'#e8e8e8'}},p.name),h('div',{style:{fontSize:11,color:'#666',marginTop:2}},'Strength \u2022 Hypertrophy \u2022 Power'))))),
+   showEq&&h('div',{onClick:()=>setShowEq(false),style:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',padding:16,zIndex:2000}},h('div',{onClick:e=>e.stopPropagation(),style:{background:'#1a1a2e',borderRadius:20,padding:24,maxWidth:500,width:'100%',maxHeight:'80vh',overflowY:'auto'}},h('h2',{style:{fontSize:20,fontWeight:800,marginBottom:16}},'My Equipment'),h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:16}},allEquipment.map(item=>h('label',{key:item,style:{display:'flex',alignItems:'center',padding:'10px 12px',background:equip.includes(item)?'rgba(99,102,241,.15)':'#111',border:equip.includes(item)?'1px solid #6366f1':'1px solid #222',borderRadius:10,cursor:'pointer'}},h('input',{type:'checkbox',checked:equip.includes(item),onChange:()=>togEq(item),style:{marginRight:8}}),h('span',{style:{fontSize:13,fontWeight:500}},item)))),h('button',{onClick:saveEq,style:{width:'100%',background:'#22c55e',color:'#fff',borderRadius:12,padding:14,fontWeight:700,fontSize:15}},'Save Equipment'))),
+   showHist&&h(History,{wk:hist,onDel:delW,onEdit:editW,onClose:()=>setShowHist(false)}),
+   showCal&&h(Calendar,{hist,onClose:()=>setShowCal(false)}),
+   showPlan&&h(WeekPlan,{onStart:selDay_,onClose:()=>setShowPlan(false)})
+  ));
  }
 
- const prog=WP[day];const vari=prog.variations[vi];
- return h('div',{style:{minHeight:'100vh',background:'#0a0a0a',padding:16,paddingBottom:100}},
-  h('div',{style:{maxWidth:600,margin:'0 auto'}},
-   prs.map((m,i)=>h('div',{key:i,className:'pr-banner'},'\u{1F3C6} NEW PR! '+m)),
-   h('button',{onClick:()=>{if(confirm('Exit? Progress lost.')){setDay(null);setCw(null);setStarted(false);setSt(null)}},style:{background:'none',color:'#888',fontSize:15,fontWeight:600,marginBottom:12,padding:'8px 0'}},'\u2190 Back'),
-   selEx&&h(ExModal,{name:selEx,prev:getPrev(selEx),onClose:()=>setSelEx(null)}),
-   showTimer&&h(TimerStopwatch,{onClose:()=>setShowTimer(false)}),
-   h('div',{style:{background:'#111',borderRadius:20,padding:20,border:'1px solid #1e1e1e'}},
-    h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
-     h('h2',{style:{fontSize:20,fontWeight:800,color:'#e8e8e8'}},prog.icon+' '+prog.name),
-     h('button',{onClick:()=>setShowTimer(!showTimer),style:{background:'#1e1e3a',color:'#60a5fa',padding:'8px 14px',borderRadius:10,fontWeight:700,fontSize:12}},'\u23F1 Timer')
-    ),
-    h('div',{style:{display:'flex',gap:6,marginBottom:16}},prog.variations.map((_,v)=>h('button',{key:v,onClick:()=>chgVar(v),style:{flex:1,background:v===vi?prog.color:'#1a1a2e',color:v===vi?'#fff':'#888',borderRadius:8,padding:8,fontWeight:700,fontSize:13,border:v===vi?'none':'1px solid #333'}},'V'+(v+1)))),
-    !started?h('button',{onClick:startW,style:{width:'100%',background:'linear-gradient(135deg,#22c55e,#16a34a)',color:'#fff',borderRadius:12,padding:16,fontWeight:800,fontSize:16,marginBottom:16}},'\u25B6 Start Workout'):h('div',{style:{marginBottom:16}},h(WorkoutTimer,{startTime:st})),
-    cw&&cw.exercises.map((ex,ei)=>{
-     const pe=vari[ei];const dn=swapped[ei]||ex.name;const dd=EX[dn];const prev=getPrev(dn);const eq=chkEq(dn);
-     // Swap always available if exercise has subs OR original has subs OR any known sub exists
-     const origName=pe.n;const origD=EX[origName];
-     const canSwap=(dd&&dd.su&&dd.su.some(s=>EX[s]))||(origD&&origD.su&&origD.su.some(s=>EX[s]));
-     const unit=ex.unit||'reps';
-     const weightLabel=unit==='meters'?'dist':'lbs';
-     const repsLabel=unit==='sec'?'sec':unit==='meters'?'meters':'reps';
-     const showWeight=unit==='reps';
-     return h('div',{key:ei+'-'+dn,style:{background:'#0a0a0a',borderRadius:14,padding:16,marginBottom:10,border:'1px solid #1e1e1e'}},
-      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:10}},
-       h('div',{style:{flex:1,minWidth:0}},
-        h('h3',{style:{fontSize:15,fontWeight:700,wordBreak:'break-word'}},dn),
-        !eq.ok&&h('div',{style:{fontSize:11,color:'#f59e0b',marginTop:2}},'\u26A0\uFE0F Missing: '+eq.miss.join(', ')),
-        prev&&h('div',{style:{fontSize:11,color:'#818cf8',marginTop:2}},'Last: '+prev.filter(s=>s.weight||s.reps).slice(0,4).map(s=>{const u=s.unit||'reps';if(s.weight)return s.weight+(u==='meters'?'m':'')+'×'+s.reps;return s.reps+(u==='sec'?'s':u==='meters'?'m':'')}).join(', '))
-       ),
-       h('div',{style:{display:'flex',gap:4,marginLeft:8,flexShrink:0}},
-        canSwap&&h('button',{onClick:()=>swapEx(ei),style:{background:!eq.ok?'#f59e0b':'#1e1e3a',color:!eq.ok?'#000':'#f59e0b',padding:'6px 10px',borderRadius:8,fontSize:11,fontWeight:700}},'Swap'),
-        h('button',{onClick:()=>setSelEx(dn),style:{background:'#1e1e3a',color:'#818cf8',padding:'6px 10px',borderRadius:8,fontSize:11,fontWeight:700}},'Info')
-       )
-      ),
-      h('div',{style:{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}},
-       h('span',{style:{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}},'Sets: '+pe.s),
-       h('span',{style:{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}},(unit==='sec'?'Time: ':unit==='meters'?'Dist: ':'Reps: ')+pe.r),
-       h('span',{style:{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}},'Rest: '+pe.re+'s')
-      ),
-      ex.sets.map((set,si)=>h('div',{key:si,style:{display:'grid',gridTemplateColumns:showWeight?'22px 1fr 1fr 40px':'22px 1fr 40px',gap:4,marginBottom:4,alignItems:'center'}},
-       h('span',{style:{color:'#6366f1',fontWeight:800,fontSize:13,textAlign:'center'}},si+1),
-       showWeight&&h('input',{type:'number',placeholder:weightLabel,value:set.weight,onChange:e=>upSet(ei,si,'weight',e.target.value),style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'10px 4px',textAlign:'center',fontSize:14,minWidth:0}}),
-       h('input',{type:unit==='reps'?'number':'text',placeholder:repsLabel,value:set.reps,onChange:e=>upSet(ei,si,'reps',e.target.value),style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'10px 4px',textAlign:'center',fontSize:14,minWidth:0}}),
-       h('button',{onClick:()=>togSet(ei,si),style:{background:set.completed?'#22c55e':'#1a1a2e',color:set.completed?'#fff':'#555',borderRadius:8,fontWeight:800,fontSize:16,border:set.completed?'none':'1px solid #333',padding:'8px 0',minHeight:40,minWidth:0}},'\u2713')
-      ))
-     );
-    }),
-    h(CardioSection,{cf:prog.cf,sel:selCardio,onSel:setSelCardio,equip:equip,cardioTime:cardioTime,setCardioTime:setCardioTime}),
-    h('div',{style:{marginBottom:16}},
-     h('div',{style:{fontSize:12,fontWeight:600,color:'#888',marginBottom:6}},'Workout Notes'),
-     h('textarea',{value:notes,onChange:e=>setNotes(e.target.value),placeholder:'How did it feel?',style:{width:'100%',background:'#0a0a0a',color:'#e8e8e8',border:'1px solid #222',borderRadius:10,padding:12,fontSize:14},rows:3})
-    ),
-    h('button',{onClick:complete,style:{width:'100%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',borderRadius:14,padding:16,fontWeight:800,fontSize:16}},'Complete Workout')
-   )
-  )
- );
+ const prog=WP[day];const vari=prog.variations[vi];const descKey=['v1','v2','v3'][vi];const desc=prog.desc[descKey];
+ return h('div',{style:{minHeight:'100vh',background:'#0a0a0a',padding:16,paddingBottom:100}},h('div',{style:{maxWidth:600,margin:'0 auto'}},
+  prs.map((m,i)=>h('div',{key:i,className:'pr-banner'},'\u{1F3C6} NEW PR! '+m)),
+  h('button',{onClick:()=>{if(!started||confirm('Exit? Progress lost.')){setDay(null);setCw(null);setStarted(false);setSt(null)}},style:{background:'none',color:'#888',fontSize:15,fontWeight:600,marginBottom:12,padding:'8px 0'}},'\u2190 Back'),
+  selEx&&h(ExModal,{name:selEx,prev:getPrev(selEx),onClose:()=>setSelEx(null)}),
+  exPicker!==null&&h(ExPicker,{onPick:name=>applySwap(exPicker,name),onClose:()=>setExPicker(null),equip}),
+  showTimer&&h(TimerStopwatch,{onClose:()=>setShowTimer(false)}),
+  h('div',{style:{background:'#111',borderRadius:20,padding:20,border:'1px solid #1e1e1e'}},
+   h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},h('h2',{style:{fontSize:20,fontWeight:800,color:'#e8e8e8'}},prog.icon+' '+prog.name),h('button',{onClick:()=>setShowTimer(!showTimer),style:{background:'#1e1e3a',color:'#60a5fa',padding:'8px 14px',borderRadius:10,fontWeight:700,fontSize:12}},'\u23F1 Timer')),
+   h('div',{style:{display:'flex',gap:6,marginBottom:12}},prog.variations.map((_,v)=>{const labels=['Strength','Hypertrophy','Power'];return h('button',{key:v,onClick:()=>chgVar(v),style:{flex:1,background:v===vi?prog.color:'#1a1a2e',color:v===vi?'#fff':'#888',borderRadius:8,padding:'8px 4px',fontWeight:700,fontSize:12,border:v===vi?'none':'1px solid #333'}},labels[v])})),
+   h('div',{style:{background:'rgba(99,102,241,0.08)',border:'1px solid rgba(99,102,241,0.2)',borderRadius:12,padding:'12px 16px',marginBottom:16}},h('div',{style:{fontWeight:800,fontSize:14,color:prog.color,marginBottom:4}},desc.focus),h('div',{style:{fontSize:13,color:'#aaa',lineHeight:1.5}},desc.muscles),h('div',{style:{display:'flex',gap:4,flexWrap:'wrap',marginTop:8}},desc.tags.map(t=>h('span',{key:t,style:{background:'rgba(255,255,255,0.06)',padding:'2px 8px',borderRadius:20,fontSize:10,fontWeight:600,color:'#888'}},t)))),
+   equip.length===0&&h('div',{style:{background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:12,padding:'12px 16px',marginBottom:12,fontSize:13,color:'#f59e0b',fontWeight:600}},'\u26A0\uFE0F No equipment selected.'),
+   !started?h('button',{onClick:startW,style:{width:'100%',background:'linear-gradient(135deg,#22c55e,#16a34a)',color:'#fff',borderRadius:12,padding:16,fontWeight:800,fontSize:16,marginBottom:16}},'\u25B6 Start Workout'):h('div',{style:{marginBottom:16}},h(WorkoutTimer,{startTime:st})),
+   cw&&cw.exercises.map((ex,ei)=>{
+    const pe=vari[ei];const dn=swapped[ei]||ex.name;const dd=EX[dn];const prev=getPrev(dn);const eq=chkEq(dn);
+    const origName=pe.n;const origD=EX[origName];
+    const canSwap=(dd&&dd.su&&dd.su.some(s=>EX[s]))||(origD&&origD.su&&origD.su.some(s=>EX[s]));
+    const unit=ex.unit||'reps';const showWeight=unit==='reps'||ex.wt;
+    const repsLabel=unit==='sec'?'sec':unit==='meters'?'meters':'reps';
+    return h('div',{key:ei+'-'+dn,style:{background:'#0a0a0a',borderRadius:14,padding:16,marginBottom:10,border:'1px solid #1e1e1e'}},
+     h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:10}},
+      h('div',{style:{flex:1,minWidth:0}},
+       h('h3',{style:{fontSize:15,fontWeight:700,wordBreak:'break-word'}},dn),
+       !eq.ok&&h('div',{style:{fontSize:12,color:'#f59e0b',marginTop:4,background:'rgba(245,158,11,0.1)',padding:'4px 8px',borderRadius:6,fontWeight:600}},'\u26A0\uFE0F Missing: '+eq.miss.join(', ')),
+       prev&&h('div',{style:{fontSize:11,color:'#818cf8',marginTop:2}},'Last: '+prev.filter(s=>s.weight||s.reps).slice(0,4).map(s=>s.weight?s.weight+'\u00d7'+s.reps:s.reps).join(', '))),
+      h('div',{style:{display:'flex',gap:4,marginLeft:8,flexShrink:0}},
+       canSwap&&h('button',{onClick:()=>swapEx(ei),style:{background:!eq.ok?'#f59e0b':'#1e1e3a',color:!eq.ok?'#000':'#f59e0b',padding:'6px 10px',borderRadius:8,fontSize:11,fontWeight:700}},'Swap'),
+       h('button',{onClick:()=>setExPicker(ei),style:{background:'#1e1e3a',color:'#10b981',padding:'6px 10px',borderRadius:8,fontSize:11,fontWeight:700}},'\u{1F50D}'),
+       h('button',{onClick:()=>setSelEx(dn),style:{background:'#1e1e3a',color:'#818cf8',padding:'6px 10px',borderRadius:8,fontSize:11,fontWeight:700}},'Info'))),
+     h('div',{style:{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}},
+      h('span',{style:{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}},'Sets: '+ex.sets.length),
+      h('span',{style:{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}},(unit==='sec'?'Time: ':unit==='meters'?'Dist: ':'Reps: ')+pe.r),
+      h('span',{style:{background:'#1a1a2e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:600,color:'#888'}},'Rest: '+pe.re+'s')),
+     ex.sets.map((set,si)=>h('div',{key:si,style:{display:'grid',gridTemplateColumns:showWeight?'22px 1fr 1fr 40px':'22px 1fr 40px',gap:4,marginBottom:4,alignItems:'center'}},
+      h('span',{style:{color:'#6366f1',fontWeight:800,fontSize:13,textAlign:'center'}},si+1),
+      showWeight&&h('input',{type:'number',placeholder:'lbs',value:set.weight,onChange:e=>upSet(ei,si,'weight',e.target.value),style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'10px 4px',textAlign:'center',fontSize:14,minWidth:0}}),
+      h('input',{type:unit==='reps'?'number':'text',placeholder:repsLabel,value:set.reps,onChange:e=>upSet(ei,si,'reps',e.target.value),style:{background:'#1a1a2e',color:'#fff',border:'1px solid #333',borderRadius:8,padding:'10px 4px',textAlign:'center',fontSize:14,minWidth:0}}),
+      h('button',{onClick:()=>togSet(ei,si),style:{background:set.completed?'#22c55e':'#1a1a2e',color:set.completed?'#fff':'#555',borderRadius:8,fontWeight:800,fontSize:16,border:set.completed?'none':'1px solid #333',padding:'8px 0',minHeight:40,minWidth:0}},'\u2713'))),
+     h('button',{onClick:()=>addSet(ei),style:{width:'100%',background:'#1a1a2e',color:'#818cf8',border:'1px dashed #333',borderRadius:8,padding:'8px 0',fontSize:12,fontWeight:700,marginTop:4}},'\u002B Add Set')
+    )}),
+   h(CardioSection,{cf:prog.cf,sel:selCardio,onSel:setSelCardio,equip,cardioTime,setCardioTime}),
+   h('div',{style:{marginBottom:16}},h('div',{style:{fontSize:12,fontWeight:600,color:'#888',marginBottom:6}},'Workout Notes'),h('textarea',{value:notes,onChange:e=>setNotes(e.target.value),placeholder:'How did it feel?',style:{width:'100%',background:'#0a0a0a',color:'#e8e8e8',border:'1px solid #222',borderRadius:10,padding:12,fontSize:14},rows:3})),
+   h('button',{onClick:complete,style:{width:'100%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',borderRadius:14,padding:16,fontWeight:800,fontSize:16}},'Complete Workout')
+  )));
 }
 
-ReactDOM.render(React.createElement(App),document.getElementById('root'));
+ReactDOM.render(h(App),document.getElementById('root'));
+
 </script>
 <script>
-// Register service worker for offline support + auto-update
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(reg => {
-    // Check for updates every 60 seconds while the app is open
     setInterval(() => reg.update(), 60000);
     reg.addEventListener('updatefound', () => {
       const newWorker = reg.installing;
       newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'activated') {
-          // New version available — reload to get it
-          window.location.reload();
-        }
+        if (newWorker.state === 'activated') window.location.reload();
       });
     });
   });
